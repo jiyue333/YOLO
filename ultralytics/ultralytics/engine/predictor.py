@@ -392,6 +392,16 @@ class BasePredictor:
             model (str | Path | torch.nn.Module): Model to load or use.
             verbose (bool): Whether to print verbose output.
         """
+        if (
+            getattr(self.args, "mode", None) in {"predict", "track"}
+            and getattr(self.args, "inference_end2end", None) is not None
+        ):
+            self.args.end2end = self.args.inference_end2end
+        if (
+            getattr(self.args, "mode", None) in {"predict", "track"}
+            and getattr(self.args, "inference_augment", None) is not None
+        ):
+            self.args.augment = self.args.inference_augment
         if hasattr(model, "end2end"):
             if self.args.end2end is not None:
                 model.end2end = self.args.end2end

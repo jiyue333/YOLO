@@ -64,6 +64,14 @@ source: # (str, optional) path/dir/URL/stream for images or videos; e.g. 'ultral
 vid_stride: 1 # (int) read every Nth frame for video sources
 stream_buffer: False # (bool) True buffers all frames; False keeps the most recent frame for low-latency streams
 visualize: False # (bool) visualize model features (predict) or TP/FP/FN confusion (val)
+inference_end2end: False # (bool) prediction uses one-to-many head + NMS instead of e2e top-k
+sahi: False # (bool) optional SAHI sliced inference, https://arxiv.org/abs/2202.06934
+sahi_slice_size: 640 # (int) SAHI square slice size
+sahi_overlap: 0.25 # (float) SAHI slice overlap ratio
+adaptive_nms: False # (bool) adaptive NMS for crowded scenes, https://arxiv.org/abs/1904.03629
+adaptive_nms_max_iou: 0.75 # (float) max IoU threshold in dense local neighborhoods
+adaptive_nms_density_threshold: 3 # (int) neighbor count that reaches adaptive_nms_max_iou
+inference_augment: True # (bool) map to Ultralytics augment=True only for predict/track TTA
 augment: False # (bool) apply test-time augmentation during prediction
 agnostic_nms: False # (bool) class-agnostic NMS
 classes: # (int | list[int], optional) filter by class id(s), e.g. 0 or [0,2,3]

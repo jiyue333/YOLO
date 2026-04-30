@@ -2,7 +2,7 @@
 
 from ultralytics.engine.predictor import BasePredictor
 from ultralytics.engine.results import Results
-from ultralytics.utils import nms, ops
+from ultralytics.utils import LOGGER, nms, ops
 
 
 class DetectionPredictor(BasePredictor):
@@ -29,6 +29,75 @@ class DetectionPredictor(BasePredictor):
         >>> predictor = DetectionPredictor(overrides=args)
         >>> predictor.predict_cli()
     """
+
+    def __call__(self, source=None, model=None, stream: bool = False, *args, **kwargs):
+        """Run standard or optional SAHI sliced prediction."""
+        if getattr(self.args, "sahi", False):
+            try:
+                results = self.sahi_inference(source=source, model=model)
+                return results if stream else list(results)
+            except ImportError:
+                LOGGER.warning("SAHI sliced inference requested but package 'sahi' is not installed; falling back.")
+        return super().__call__(source=source, model=model, stream=stream, *args, **kwargs)
+
+    def sahi_inference(self, source=None, model=None):
+        """Run SAHI sliced inference for image files with lazy optional imports.
+
+        References:
+            https://arxiv.org/abs/2202.06934
+            https://github.com/obss/sahi
+        """
+        from pathlib import Path
+
+        import cv2
+        import torch
+        from sahi import AutoDetectionModel
+        from sahi.predict import get_sliced_prediction
+
+        from ultralytics.data.utils import IMG_FORMATS
+
+        source = source if source is not None else self.args.source
+        if source is None:
+            raise ValueError("SAHI inference requires an image file or directory source.")
+
+        source_path = Path(source)
+        if source_path.is_dir():
+            image_paths = sorted(p for p in source_path.rglob("*.*") if p.suffix[1:].lower() in IMG_FORMATS)
+        else:
+            image_paths = [source_path]
+
+        detection_model = AutoDetectionModel.from_pretrained(
+            model_type="ultralytics",
+            model_path=str(model or self.args.model),
+            confidence_threshold=float(self.args.conf or 0.25),
+            device=str(self.args.device or "cpu"),
+        )
+        mapping = getattr(detection_model, "category_mapping", {}) or {}
+        names = {int(k): v for k, v in mapping.items()} if mapping else getattr(self.model, "names", {})
+
+        for image_path in image_paths:
+            sliced = get_sliced_prediction(
+                str(image_path),
+                detection_model,
+                slice_height=int(self.args.sahi_slice_size),
+                slice_width=int(self.args.sahi_slice_size),
+                overlap_height_ratio=float(self.args.sahi_overlap),
+                overlap_width_ratio=float(self.args.sahi_overlap),
+                postprocess_type="NMS",
+                postprocess_match_threshold=float(self.args.iou),
+            )
+            orig_img = cv2.imread(str(image_path))
+            if orig_img is None:
+                LOGGER.warning(f"Skipping unreadable SAHI source: {image_path}")
+                continue
+            rows = []
+            for obj in sliced.object_prediction_list:
+                x1, y1, x2, y2 = obj.bbox.to_xyxy()
+                rows.append([x1, y1, x2, y2, float(obj.score.value), float(obj.category.id)])
+            boxes = torch.tensor(rows, dtype=torch.float32) if rows else torch.zeros((0, 6), dtype=torch.float32)
+            result = Results(orig_img, path=str(image_path), names=names, boxes=boxes)
+            result.speed = {"preprocess": 0.0, "inference": 0.0, "postprocess": 0.0}
+            yield result
 
     def postprocess(self, preds, img, orig_imgs, **kwargs):
         """Post-process predictions and return a list of Results objects.
@@ -60,6 +129,9 @@ class DetectionPredictor(BasePredictor):
             max_det=self.args.max_det,
             nc=0 if self.args.task == "detect" else len(self.model.names),
             end2end=getattr(self.model, "end2end", False),
+            adaptive_nms=getattr(self.args, "adaptive_nms", False),
+            adaptive_nms_max_iou=getattr(self.args, "adaptive_nms_max_iou", 0.75),
+            adaptive_nms_density_threshold=getattr(self.args, "adaptive_nms_density_threshold", 3),
             rotated=self.args.task == "obb",
             return_idxs=save_feats,
         )

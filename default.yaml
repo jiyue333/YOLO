@@ -19,7 +19,7 @@ experiment:
   task: detect # 任务类型：detect | segment | classify | pose | obb
   mode: train # 仅作为记录；train.py 会强制用 train，val.py 会强制用 val
   project: runs/smoke # 实验输出根目录，脚本会自动转为绝对路径
-  name: epochs_ema_decay # 当前实验名称，对应 project/name
+  name: inference_sahi_adaptive_nms # 当前实验名称，对应 project/name
   exist_ok: true # 是否允许复用已有同名实验目录
   verbose: true # 是否打印详细日志
   seed: 0 # 随机种子
@@ -74,7 +74,15 @@ prediction:
   source: null # 推理源；可以是图片/文件夹/视频/摄像头/URL（train/val 脚本通常不会用到）
   vid_stride: 1 # 视频推理时每隔多少帧处理一次
   stream_buffer: false # 视频流是否缓存全部帧；低延迟场景一般保持 false
-  augment: false # 推理时是否开启测试时增强（TTA）
+  inference_end2end: false # 推理关闭 e2e，使用 one-to-many head + NMS；参考 YOLOv10/Ultralytics
+  sahi: true # 可选 SAHI 切片推理；未安装 sahi 时自动回退普通预测
+  sahi_slice_size: 640 # SAHI slice 尺寸；参考 https://arxiv.org/abs/2202.06934 和 https://github.com/obss/sahi
+  sahi_overlap: 0.25 # SAHI slice overlap ratio
+  adaptive_nms: true # Adaptive NMS：根据局部 crowd density 动态放宽 IoU；参考 https://arxiv.org/abs/1904.03629
+  adaptive_nms_max_iou: 0.75 # dense 区域 NMS IoU 上限
+  adaptive_nms_density_threshold: 3 # 超过该局部邻居数时使用最大 IoU
+  inference_augment: true # 推理时开启 Ultralytics TTA（多尺度 + 水平翻转）
+  augment: false # 训练/验证 smoke 不启用 TTA；predict/track 由 inference_augment 映射
   agnostic_nms: false # 是否进行类别无关 NMS
   classes: null # 只保留指定类别，例如 [0, 2]
   embed: null # 提取指定层的 embedding，例如 [10, 14]

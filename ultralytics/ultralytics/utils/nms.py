@@ -25,6 +25,9 @@ def non_max_suppression(
     max_wh: int = 7680,
     rotated: bool = False,
     end2end: bool = False,
+    adaptive_nms: bool = False,
+    adaptive_nms_max_iou: float = 0.75,
+    adaptive_nms_density_threshold: int = 3,
     return_idxs: bool = False,
 ):
     """Perform non-maximum suppression (NMS) on prediction results.
@@ -48,6 +51,9 @@ def non_max_suppression(
         max_wh (int): Maximum box width and height in pixels.
         rotated (bool): Whether to handle Oriented Bounding Boxes (OBB).
         end2end (bool): Whether the model is end-to-end and doesn't require NMS.
+        adaptive_nms (bool): Dynamically relax NMS IoU in locally dense regions for crowded scenes.
+        adaptive_nms_max_iou (float): Maximum IoU threshold used by adaptive NMS in dense regions.
+        adaptive_nms_density_threshold (int): Neighbor count that maps to adaptive_nms_max_iou.
         return_idxs (bool): Whether to return the indices of kept detections.
 
     Returns:
@@ -148,7 +154,18 @@ def non_max_suppression(
         else:
             boxes = x[:, :4] + c  # boxes (offset by class)
             # Speed strategy: torchvision for val or already loaded (faster), TorchNMS for predict (lower latency)
-            if "torchvision" in sys.modules:
+            if adaptive_nms:
+                # Adaptive NMS raises the suppression threshold in locally dense regions to avoid dropping
+                # adjacent crowd instances. References: https://arxiv.org/abs/1904.03629 and
+                # https://github.com/TuKJet/Adaptive-NMS
+                i = TorchNMS.adaptive_nms(
+                    boxes,
+                    scores,
+                    iou_thres,
+                    max_iou_threshold=adaptive_nms_max_iou,
+                    density_threshold=adaptive_nms_density_threshold,
+                )
+            elif "torchvision" in sys.modules:
                 import torchvision  # scope as slow import
 
                 i = torchvision.ops.nms(boxes, scores, iou_thres)
@@ -293,6 +310,60 @@ class TorchNMS:
             iou = inter / (areas[i] + areas[rest] - inter)
             # Keep boxes with IoU <= threshold
             order = rest[iou <= iou_threshold]
+
+        return keep[:keep_idx]
+
+    @staticmethod
+    def adaptive_nms(
+        boxes: torch.Tensor,
+        scores: torch.Tensor,
+        iou_threshold: float,
+        max_iou_threshold: float = 0.75,
+        density_threshold: int = 3,
+    ) -> torch.Tensor:
+        """Adaptive NMS for crowded scenes using local overlap density.
+
+        The original Adaptive NMS paper uses target density to vary the NMS threshold. This dependency-free
+        implementation estimates density from same-class local overlaps after class offsets are applied, then relaxes
+        the IoU threshold up to ``max_iou_threshold`` for dense neighborhoods.
+
+        References:
+            https://arxiv.org/abs/1904.03629
+            https://github.com/TuKJet/Adaptive-NMS
+        """
+        if boxes.numel() == 0:
+            return torch.empty((0,), dtype=torch.int64, device=boxes.device)
+
+        max_iou_threshold = max(float(iou_threshold), float(max_iou_threshold))
+        density_threshold = max(int(density_threshold), 1)
+        x1, y1, x2, y2 = boxes.unbind(1)
+        areas = (x2 - x1) * (y2 - y1)
+        order = scores.argsort(0, descending=True)
+
+        keep = torch.zeros(order.numel(), dtype=torch.int64, device=boxes.device)
+        keep_idx = 0
+        while order.numel() > 0:
+            i = order[0]
+            keep[keep_idx] = i
+            keep_idx += 1
+
+            if order.numel() == 1:
+                break
+            rest = order[1:]
+            xx1 = torch.maximum(x1[i], x1[rest])
+            yy1 = torch.maximum(y1[i], y1[rest])
+            xx2 = torch.minimum(x2[i], x2[rest])
+            yy2 = torch.minimum(y2[i], y2[rest])
+            inter = (xx2 - xx1).clamp_(min=0) * (yy2 - yy1).clamp_(min=0)
+            if inter.sum() == 0:
+                order = rest
+                continue
+
+            iou = inter / (areas[i] + areas[rest] - inter)
+            density = torch.count_nonzero(iou > iou_threshold).item()
+            ratio = min(density / density_threshold, 1.0)
+            dynamic_iou = iou_threshold + (max_iou_threshold - iou_threshold) * ratio
+            order = rest[iou <= dynamic_iou]
 
         return keep[:keep_idx]
 
