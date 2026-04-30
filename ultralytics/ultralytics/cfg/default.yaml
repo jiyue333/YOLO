@@ -133,6 +133,11 @@ mixup: 0.0 # (float) MixUp augmentation probability
 cutmix: 0.0 # (float) CutMix augmentation probability
 copy_paste: 0.0 # (float) segmentation copy-paste probability
 copy_paste_mode: flip # (str) copy-paste strategy for segmentation: flip or mixup
+small_copy_paste_area: 0.01 # (float) normalized bbox area threshold for small-object Copy-Paste
+select_mosaic: False # (bool) use small-object-biased Select-Mosaic sampling
+motion_blur: 0.0 # (float) Albumentations MotionBlur probability
+cached_mixup: False # (bool) use cached MixUp source samples inspired by YOLOX
+mixup_cache_size: 32 # (int) cached MixUp sample buffer size
 auto_augment: randaugment # (str) classification auto augmentation policy: randaugment, autoaugment, augmix
 erasing: 0.4 # (float) random erasing probability for classification (0.0–1.0)
 

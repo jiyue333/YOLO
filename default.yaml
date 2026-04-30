@@ -19,7 +19,7 @@ experiment:
   task: detect # 任务类型：detect | segment | classify | pose | obb
   mode: train # 仅作为记录；train.py 会强制用 train，val.py 会强制用 val
   project: runs/smoke # 实验输出根目录，脚本会自动转为绝对路径
-  name: mhaf_backbone_neck # 当前实验名称，对应 project/name
+  name: small_object_augmentations # 当前实验名称，对应 project/name
   exist_ok: true # 是否允许复用已有同名实验目录
   verbose: true # 是否打印详细日志
   seed: 0 # 随机种子
@@ -50,7 +50,7 @@ train:
   optimizer: MuSGD # 对齐官方 YOLO26 配方优化器
   rect: false # 是否使用矩形训练批次
   cos_lr: false # 是否使用 cosine learning rate 调度
-  close_mosaic: 10 # 官方配方：最后 10 个 epoch 关闭 mosaic
+  close_mosaic: 15 # YOLOX close_mosaic 策略：最后 10-15 epoch 关闭强增强
   resume: false # 是否恢复训练；也可以填 last.pt 路径
   amp: true # 是否启用自动混合精度 AMP
   profile: false # 训练时是否额外 profile ONNX/TensorRT 速度
@@ -139,7 +139,13 @@ augmentations:
   mosaic: 0.909 # 官方 YOLO26n 配方 Mosaic 增强概率
   mixup: 0.012 # 官方 YOLO26n 配方 MixUp 增强概率
   cutmix: 0.0 # CutMix 增强概率
-  # copy_paste / auto_augment / erasing 等非 detect 任务参数已移除
+  copy_paste: 0.4 # 小目标 Copy-Paste 概率；参考 Simple Copy-Paste/RTMDet
+  copy_paste_mode: mixup # detect 任务走跨图 small-object bbox Copy-Paste
+  small_copy_paste_area: 0.01 # 仅复制面积占比 <1% 的 bbox
+  select_mosaic: true # Select-Mosaic：优先抽取小目标密集样本
+  motion_blur: 0.1 # Albumentations MotionBlur 概率
+  cached_mixup: true # YOLOX-style Cached MixUp
+  mixup_cache_size: 32 # Cached MixUp 缓存容量
 
 tracker:
   tracker: botsort.yaml # 跟踪器配置：botsort.yaml | bytetrack.yaml

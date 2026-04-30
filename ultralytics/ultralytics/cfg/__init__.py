@@ -212,6 +212,8 @@ CFG_FRACTION_KEYS = frozenset(
         "mixup",
         "cutmix",
         "copy_paste",
+        "small_copy_paste_area",
+        "motion_blur",
         "conf",
         "iou",
         "fraction",
@@ -230,6 +232,7 @@ CFG_INT_KEYS = frozenset(
         "vid_stride",
         "line_width",
         "nbs",
+        "mixup_cache_size",
         "save_period",
     }
 )
@@ -268,6 +271,8 @@ CFG_BOOL_KEYS = frozenset(
         "nms",
         "profile",
         "end2end",
+        "select_mosaic",
+        "cached_mixup",
     }
 )
 

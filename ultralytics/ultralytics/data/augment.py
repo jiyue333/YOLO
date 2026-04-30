@@ -815,6 +815,37 @@ class Mosaic(BaseMixTransform):
         return final_labels
 
 
+class SelectMosaic(Mosaic):
+    """Small-object-biased Mosaic sampler.
+
+    References:
+        https://arxiv.org/abs/2406.05412
+        https://github.com/malagoutou/Select-Mosaic
+    """
+
+    def __init__(self, dataset, imgsz: int = 640, p: float = 1.0, n: int = 4, small_area: float = 0.01):
+        """Initialize Select-Mosaic with a normalized small-object area threshold."""
+        super().__init__(dataset=dataset, imgsz=imgsz, p=p, n=n)
+        self.small_area = small_area
+
+    def _small_count(self, index: int) -> int:
+        """Count small normalized xywh boxes for candidate image ranking."""
+        labels = getattr(self.dataset, "labels", None)
+        if not labels or index >= len(labels):
+            return 0
+        bboxes = labels[index].get("bboxes", np.zeros((0, 4), dtype=np.float32))
+        return int(((bboxes[:, 2] * bboxes[:, 3]) < self.small_area).sum()) if len(bboxes) else 0
+
+    def get_indexes(self):
+        """Select mosaic partners from candidates richer in small objects."""
+        pool = list(self.dataset.buffer) if self.buffer_enabled and len(self.dataset.buffer) else list(range(len(self.dataset)))
+        if not pool:
+            return super().get_indexes()
+        sample = random.choices(pool, k=min(max((self.n - 1) * 4, self.n - 1), len(pool) * 2))
+        sample = sorted(sample, key=self._small_count, reverse=True)
+        return sample[: self.n - 1]
+
+
 class MixUp(BaseMixTransform):
     """Apply MixUp augmentation to image datasets.
 
@@ -870,6 +901,52 @@ class MixUp(BaseMixTransform):
         labels["img"] = (labels["img"] * r + labels2["img"] * (1 - r)).astype(np.uint8)
         labels["instances"] = Instances.concatenate([labels["instances"], labels2["instances"]], axis=0)
         labels["cls"] = np.concatenate([labels["cls"], labels2["cls"]], 0)
+        return labels
+
+
+class CachedMixUp(MixUp):
+    """Cached MixUp source sampler inspired by YOLOX.
+
+    References:
+        https://arxiv.org/abs/2107.08430
+        https://github.com/Megvii-BaseDetection/YOLOX
+    """
+
+    def __init__(self, dataset, pre_transform=None, p: float = 0.0, cache_size: int = 32) -> None:
+        """Initialize Cached MixUp with a bounded in-memory label cache."""
+        super().__init__(dataset=dataset, pre_transform=pre_transform, p=p)
+        self.cache_size = max(int(cache_size), 1)
+        self.cache = []
+
+    def _remember(self, labels: dict[str, Any]) -> None:
+        """Store a copy of a recent sample for future MixUp."""
+        self.cache.append(deepcopy(labels))
+        if len(self.cache) > self.cache_size:
+            self.cache.pop(0)
+
+    def __call__(self, labels: dict[str, Any]) -> dict[str, Any]:
+        """Apply MixUp using cached transformed samples when available."""
+        original = deepcopy(labels)
+        if random.uniform(0, 1) > self.p:
+            self._remember(original)
+            return labels
+
+        if self.cache:
+            mix_labels = [deepcopy(random.choice(self.cache))]
+        else:
+            indexes = self.get_indexes()
+            if isinstance(indexes, int):
+                indexes = [indexes]
+            mix_labels = [self.dataset.get_image_and_label(i) for i in indexes]
+            if self.pre_transform is not None:
+                for i, data in enumerate(mix_labels):
+                    mix_labels[i] = self.pre_transform(data)
+
+        labels["mix_labels"] = mix_labels
+        labels = self._update_label_text(labels)
+        labels = self._mix_transform(labels)
+        labels.pop("mix_labels", None)
+        self._remember(original)
         return labels
 
 
@@ -1773,6 +1850,75 @@ class CopyPaste(BaseMixTransform):
         return labels1
 
 
+class SmallObjectCopyPaste(BaseMixTransform):
+    """Box-only Copy-Paste restricted to small detection boxes.
+
+    References:
+        https://arxiv.org/abs/2012.07177
+        https://github.com/conradry/copy-paste-aug
+        https://arxiv.org/abs/2212.07784
+        https://github.com/open-mmlab/mmdetection/tree/main/configs/rtmdet
+    """
+
+    def __init__(self, dataset=None, pre_transform=None, p: float = 0.4, small_area: float = 0.01) -> None:
+        """Initialize small-object Copy-Paste for detection bboxes."""
+        super().__init__(dataset=dataset, pre_transform=pre_transform, p=p)
+        self.small_area = small_area
+
+    def get_indexes(self):
+        """Return one source image index."""
+        return random.randint(0, len(self.dataset) - 1)
+
+    def _mix_transform(self, labels: dict[str, Any]) -> dict[str, Any]:
+        """Paste small bbox crops from a source image into the current detection sample."""
+        labels2 = labels["mix_labels"][0]
+        im = labels["img"].copy()
+        src = labels2["img"]
+        h, w = im.shape[:2]
+        instances = labels["instances"]
+        instances.convert_bbox(format="xyxy")
+        instances.denormalize(w, h)
+        instances2 = deepcopy(labels2["instances"])
+        instances2.convert_bbox(format="xyxy")
+        instances2.denormalize(w, h)
+
+        if len(instances2.bboxes) == 0:
+            labels["img"] = im
+            labels["instances"] = instances
+            return labels
+
+        wh = (instances2.bboxes[:, 2:4] - instances2.bboxes[:, 0:2]).clip(0)
+        small = (wh[:, 0] * wh[:, 1]) / max(float(h * w), 1.0) < self.small_area
+        if len(instances.bboxes):
+            ioa = bbox_ioa(instances2.bboxes, instances.bboxes)
+            keep = small & (ioa < 0.30).all(1)
+        else:
+            keep = small
+        indexes = np.nonzero(keep)[0]
+        if len(indexes) == 0:
+            labels["img"] = im
+            labels["instances"] = instances
+            return labels
+
+        max_paste = max(1, round(self.p * len(indexes)))
+        pasted = []
+        for j in indexes[:max_paste]:
+            x1, y1, x2, y2 = instances2.bboxes[j].round().astype(int)
+            x1, y1 = max(x1, 0), max(y1, 0)
+            x2, y2 = min(x2, w), min(y2, h)
+            if x2 <= x1 or y2 <= y1:
+                continue
+            im[y1:y2, x1:x2] = src[y1:y2, x1:x2]
+            pasted.append(j)
+
+        if pasted:
+            labels["cls"] = np.concatenate((labels["cls"], labels2["cls"][pasted]), axis=0)
+            instances = Instances.concatenate((instances, instances2[pasted]), axis=0)
+        labels["img"] = im
+        labels["instances"] = instances
+        return labels
+
+
 class Albumentations:
     """Albumentations transformations for image augmentation.
 
@@ -2411,7 +2557,13 @@ def v8_transforms(dataset, imgsz: int, hyp: IterableSimpleNamespace, stretch: bo
         >>> hyp.augmentations = augmentations
         >>> transforms = v8_transforms(dataset, imgsz=640, hyp=hyp)
     """
-    mosaic = Mosaic(dataset, imgsz=imgsz, p=hyp.mosaic)
+    mosaic_cls = SelectMosaic if getattr(hyp, "select_mosaic", False) else Mosaic
+    make_mosaic = (
+        lambda: SelectMosaic(dataset, imgsz=imgsz, p=hyp.mosaic, small_area=getattr(hyp, "small_copy_paste_area", 0.01))
+        if mosaic_cls is SelectMosaic
+        else Mosaic(dataset, imgsz=imgsz, p=hyp.mosaic)
+    )
+    mosaic = make_mosaic()
     affine = RandomPerspective(
         degrees=hyp.degrees,
         translate=hyp.translate,
@@ -2425,14 +2577,25 @@ def v8_transforms(dataset, imgsz: int, hyp: IterableSimpleNamespace, stretch: bo
     if hyp.copy_paste_mode == "flip":
         pre_transform.insert(1, CopyPaste(p=hyp.copy_paste, mode=hyp.copy_paste_mode))
     else:
-        pre_transform.append(
-            CopyPaste(
-                dataset,
-                pre_transform=Compose([Mosaic(dataset, imgsz=imgsz, p=hyp.mosaic), affine]),
-                p=hyp.copy_paste,
-                mode=hyp.copy_paste_mode,
+        mosaic_for_copy = make_mosaic()
+        if not dataset.use_segments and getattr(hyp, "small_copy_paste_area", 0) > 0:
+            pre_transform.append(
+                SmallObjectCopyPaste(
+                    dataset,
+                    pre_transform=Compose([mosaic_for_copy, affine]),
+                    p=hyp.copy_paste,
+                    small_area=hyp.small_copy_paste_area,
+                )
             )
-        )
+        else:
+            pre_transform.append(
+                CopyPaste(
+                    dataset,
+                    pre_transform=Compose([mosaic_for_copy, affine]),
+                    p=hyp.copy_paste,
+                    mode=hyp.copy_paste_mode,
+                )
+            )
     flip_idx = dataset.data.get("flip_idx", [])  # for keypoints augmentation
     if dataset.use_keypoints:
         kpt_shape = dataset.data.get("kpt_shape", None)
@@ -2442,12 +2605,30 @@ def v8_transforms(dataset, imgsz: int, hyp: IterableSimpleNamespace, stretch: bo
         elif flip_idx and (len(flip_idx) != kpt_shape[0]):
             raise ValueError(f"data.yaml flip_idx={flip_idx} length must be equal to kpt_shape[0]={kpt_shape[0]}")
 
+    albumentations_transforms = getattr(hyp, "augmentations", None)
+    if getattr(hyp, "motion_blur", 0.0) > 0:
+        # MotionBlur follows the requested Albumentations integration.
+        # References: https://arxiv.org/abs/2011.14448 and https://github.com/albumentations-team/albumentations
+        try:
+            import albumentations as A
+
+            albumentations_transforms = list(albumentations_transforms or [])
+            albumentations_transforms.append(A.MotionBlur(blur_limit=(3, 7), p=hyp.motion_blur))
+        except ImportError:
+            LOGGER.warning("Albumentations is not installed, skipping MotionBlur augmentation.")
+
+    mixup_cls = CachedMixUp if getattr(hyp, "cached_mixup", False) else MixUp
     return Compose(
         [
             pre_transform,
-            MixUp(dataset, pre_transform=pre_transform, p=hyp.mixup),
+            mixup_cls(
+                dataset,
+                pre_transform=pre_transform,
+                p=hyp.mixup,
+                **({"cache_size": getattr(hyp, "mixup_cache_size", 32)} if mixup_cls is CachedMixUp else {}),
+            ),
             CutMix(dataset, pre_transform=pre_transform, p=hyp.cutmix),
-            Albumentations(p=1.0, transforms=getattr(hyp, "augmentations", None)),
+            Albumentations(p=1.0, transforms=albumentations_transforms),
             RandomHSV(hgain=hyp.hsv_h, sgain=hyp.hsv_s, vgain=hyp.hsv_v),
             RandomFlip(direction="vertical", p=hyp.flipud, flip_idx=flip_idx),
             RandomFlip(direction="horizontal", p=hyp.fliplr, flip_idx=flip_idx),
