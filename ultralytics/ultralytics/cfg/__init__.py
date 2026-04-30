@@ -179,6 +179,10 @@ CFG_FLOAT_KEYS = frozenset(
         "time",
         "workspace",
         "batch",
+        "wiou_alpha",
+        "wiou_delta",
+        "nwd_small_area",
+        "nwd_constant",
     }
 )
 CFG_FRACTION_KEYS = frozenset(
@@ -193,6 +197,11 @@ CFG_FRACTION_KEYS = frozenset(
         "hsv_h",
         "hsv_s",
         "hsv_v",
+        "wiou_momentum",
+        "nwd_weight",
+        "repgt_weight",
+        "repulsion_sigma",
+        "cls_pos_weight",
         "translate",
         "scale",
         "perspective",

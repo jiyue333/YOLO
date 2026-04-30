@@ -13,40 +13,40 @@
 
 meta:
   config_version: 1 # 配置版本，仅用于备注，不会传给 YOLO
-  description: "YOLO26 detect 训练模板（按 YOLO26n 公开 recipe 对齐，并移除非 detect 参数）" # 配置说明，仅用于备注
+  description: "YOLO26 detect 小目标拥挤场景 smoke 配置；每阶段提交前用 COCO8 跑通 1 epoch" # 配置说明，仅用于备注
 
 experiment:
   task: detect # 任务类型：detect | segment | classify | pose | obb
   mode: train # 仅作为记录；train.py 会强制用 train，val.py 会强制用 val
-  project: runs/experiments # 实验输出根目录，脚本会自动转为绝对路径
-  name: yolo26n_p2 # 当前实验名称，对应 project/name
-  exist_ok: false # 是否允许复用已有同名实验目录
+  project: runs/smoke # 实验输出根目录，脚本会自动转为绝对路径
+  name: loss_wiou_nwd_repgt # 当前实验名称，对应 project/name
+  exist_ok: true # 是否允许复用已有同名实验目录
   verbose: true # 是否打印详细日志
   seed: 0 # 随机种子
   deterministic: false # 是否尽量保证可复现（通常更稳，但可能稍慢）
 
 model:
-  model: /gemini/code/YOLO/ultralytics/ultralytics/cfg/models/26/yolo26n-p2.yaml # 保留当前 YOLO26-P2 结构；仅训练超参数对齐官方 recipe
-  pretrained: true # true=使用官方预训练；false=从头训练；也可直接写成权重路径
+  model: ultralytics/ultralytics/cfg/models/26/yolo26-p2.yaml # 保留当前 YOLO26-P2 结构；后续阶段切到 yolo26-mhaf-p2.yaml
+  pretrained: false # smoke 从结构 yaml 构建，避免依赖不存在的本地权重
   freeze: null # 冻结层：null/0=不冻结；整数=冻结前 N 层；列表=指定层索引
   compile: false # 是否启用 torch.compile；可写 false/true/"default"/"reduce-overhead" 等
 
 dataset:
-  data: ul://juliet-heath/datasets/crowdhuman-dataset-people-and-faces-19k # 数据集配置 yaml；当前指向 /gemini/data-1 的 YOLO 数据集配置
-  fraction: 1.0 # 使用训练集的比例，1.0 表示全量数据
+  data: ultralytics/ultralytics/cfg/datasets/coco8.yaml # 每阶段提交前使用 COCO8 smoke
+  fraction: 0.25 # 使用训练集的比例，1.0 表示全量数据
   single_cls: false # 是否把所有类别视为单类别任务
 
 train:
-  epochs: 100 # 对齐官方 YOLO26n 配方轮数
+  epochs: 1 # smoke：每阶段提交前跑通 1 epoch
   time: null # 最大训练时长（单位：小时）；设置后会覆盖 epochs
   patience: 100 # 早停容忍轮数
-  batch: 16 # 对齐官方 YOLO26 配方 batch size；显存不足时可手动覆盖
-  imgsz: 640 # 输入图像尺寸；训练/验证通常写单个整数
+  batch: 1 # smoke batch
+  imgsz: 64 # smoke 输入尺寸；正式训练阶段会在训练与 Epoch 分点切回 640/300 epochs
   save: true # 是否保存训练结果和权重
   save_period: -1 # 每 N 轮额外保存一次 checkpoint；<1 表示关闭
   cache: false # 是否缓存图像；可写 false/true/"ram"/"disk"
-  device: 0 # 训练设备；如 0 / "cpu" / "mps" / [0,1]
-  workers: 8 # dataloader worker 数量
+  device: cpu # 训练设备；如 0 / "cpu" / "mps" / [0,1]
+  workers: 0 # smoke 避免多进程 dataloader 干扰
   optimizer: MuSGD # 对齐官方 YOLO26 配方优化器
   rect: false # 是否使用矩形训练批次
   cos_lr: false # 是否使用 cosine learning rate 调度
@@ -114,6 +114,15 @@ hyperparameters:
   cls_pw: 0.0 # 类别频率修正强度，0 表示关闭
   dfl: 9.04 # 官方 YOLO26n 配方 distribution focal loss gain；当前仓库的 YOLO26 detect 仍会实际使用
   nbs: 64 # nominal batch size，用于 loss 归一化
+  wiou_alpha: 1.9 # Wise-IoU v3 alpha；参考 https://arxiv.org/abs/2301.10051 和 https://github.com/Instinct323/wiou
+  wiou_delta: 3.0 # Wise-IoU v3 delta
+  wiou_momentum: 0.01 # Wise-IoU v3 running mean EMA momentum
+  nwd_weight: 0.6 # 小目标 NWD 权重；参考 https://arxiv.org/abs/2110.13389 和 https://github.com/jwwangchn/NWD
+  nwd_small_area: 1024.0 # 小目标像素面积阈值：32x32
+  nwd_constant: 12.8 # NWD normalized Gaussian Wasserstein constant
+  repgt_weight: 0.4 # Repulsion Loss 仅 RepGT 权重；参考 https://arxiv.org/abs/1711.07752
+  repulsion_sigma: 0.5 # Repulsion Loss smooth-ln sigma
+  cls_pos_weight: 1.0 # 当前阶段不改分类 BCE；标签分配阶段会降到 0.75
 
 augmentations:
   hsv_h: 0.014 # 官方 YOLO26n 配方 HSV 色调增强强度

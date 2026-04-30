@@ -106,13 +106,66 @@ class DFLoss(nn.Module):
         ).mean(-1, keepdim=True)
 
 
+def _wise_iou_v3_xyxy(
+    pred_bboxes: torch.Tensor,
+    target_bboxes: torch.Tensor,
+    iou_mean: torch.Tensor,
+    alpha: float = 1.9,
+    delta: float = 3.0,
+    eps: float = 1e-7,
+) -> tuple[torch.Tensor, torch.Tensor]:
+    """Compute Wise-IoU v3 loss for matched xyxy boxes.
+
+    References:
+        https://arxiv.org/abs/2301.10051
+        https://github.com/Instinct323/wiou
+    """
+    if pred_bboxes.shape[-1] != 4 or target_bboxes.shape[-1] != 4:
+        raise ValueError("Wise-IoU expects xyxy boxes with last dimension 4.")
+
+    p_x1, p_y1, p_x2, p_y2 = pred_bboxes.chunk(4, -1)
+    t_x1, t_y1, t_x2, t_y2 = target_bboxes.chunk(4, -1)
+
+    inter = (p_x2.minimum(t_x2) - p_x1.maximum(t_x1)).clamp_(0) * (
+        p_y2.minimum(t_y2) - p_y1.maximum(t_y1)
+    ).clamp_(0)
+    p_area = (p_x2 - p_x1).clamp_min(eps) * (p_y2 - p_y1).clamp_min(eps)
+    t_area = (t_x2 - t_x1).clamp_min(eps) * (t_y2 - t_y1).clamp_min(eps)
+    iou = inter / (p_area + t_area - inter + eps)
+
+    p_cx, p_cy = (p_x1 + p_x2) * 0.5, (p_y1 + p_y2) * 0.5
+    t_cx, t_cy = (t_x1 + t_x2) * 0.5, (t_y1 + t_y2) * 0.5
+    center_dist = (p_cx - t_cx).pow(2) + (p_cy - t_cy).pow(2)
+    convex_w = p_x2.maximum(t_x2) - p_x1.minimum(t_x1)
+    convex_h = p_y2.maximum(t_y2) - p_y1.minimum(t_y1)
+    convex_diag = convex_w.pow(2) + convex_h.pow(2) + eps
+
+    iou_loss = 1.0 - iou
+    distance_gain = torch.exp((center_dist / convex_diag).detach())
+    beta = (iou_loss.detach() / iou_mean.clamp_min(eps)).clamp_min(eps)
+    focusing = beta / (delta * torch.pow(torch.tensor(alpha, device=beta.device, dtype=beta.dtype), beta - delta))
+    return (distance_gain * focusing * iou_loss).squeeze(-1), iou.squeeze(-1)
+
+
 class BboxLoss(nn.Module):
     """Criterion class for computing training losses for bounding boxes."""
 
-    def __init__(self, reg_max: int = 16):
+    def __init__(self, reg_max: int = 16, hyp: Any | None = None):
         """Initialize the BboxLoss module with regularization maximum and DFL settings."""
         super().__init__()
         self.dfl_loss = DFLoss(reg_max) if reg_max > 1 else None
+        self.wiou_alpha = float(getattr(hyp, "wiou_alpha", 1.9))
+        self.wiou_delta = float(getattr(hyp, "wiou_delta", 3.0))
+        self.wiou_momentum = float(getattr(hyp, "wiou_momentum", 0.01))
+        self.nwd_weight = float(getattr(hyp, "nwd_weight", 0.6))
+        self.nwd_small_area = float(getattr(hyp, "nwd_small_area", 32 * 32))
+        self.repgt_weight = float(getattr(hyp, "repgt_weight", 0.4))
+        self.register_buffer("wiou_iou_mean", torch.tensor(1.0))
+        self.nwd_loss = NWDLoss(constant=float(getattr(hyp, "nwd_constant", 12.8)), reduction="none")
+        self.repulsion_loss = RepulsionLoss(
+            sigma=float(getattr(hyp, "repulsion_sigma", 0.5)),
+            reduction="mean",
+        )
 
     def forward(
         self,
@@ -125,11 +178,46 @@ class BboxLoss(nn.Module):
         fg_mask: torch.Tensor,
         imgsz: torch.Tensor,
         stride: torch.Tensor,
+        gt_bboxes: torch.Tensor | None = None,
+        target_gt_idx: torch.Tensor | None = None,
     ) -> tuple[torch.Tensor, torch.Tensor]:
         """Compute IoU and DFL losses for bounding boxes."""
         weight = target_scores.sum(-1)[fg_mask].unsqueeze(-1)
-        iou = bbox_iou(pred_bboxes[fg_mask], target_bboxes[fg_mask], xywh=False, CIoU=True)
-        loss_iou = ((1.0 - iou) * weight).sum() / target_scores_sum
+        pred_pos = pred_bboxes[fg_mask]
+        target_pos = target_bboxes[fg_mask]
+
+        # Wise-IoU v3 replaces CIoU as the main regression term.
+        # References: https://arxiv.org/abs/2301.10051 and https://github.com/Instinct323/wiou
+        wiou_loss, iou = _wise_iou_v3_xyxy(
+            pred_pos,
+            target_pos,
+            self.wiou_iou_mean.to(device=pred_pos.device, dtype=pred_pos.dtype),
+            alpha=self.wiou_alpha,
+            delta=self.wiou_delta,
+        )
+        if self.training and wiou_loss.numel():
+            self.wiou_iou_mean.mul_(1.0 - self.wiou_momentum).add_(wiou_loss.detach().mean() * self.wiou_momentum)
+        loss_iou = (wiou_loss.unsqueeze(-1) * weight).sum() / target_scores_sum
+
+        stride_full = stride.view(1, -1, 1).expand(pred_bboxes.shape[0], -1, 1)
+        stride_pos = stride_full[fg_mask]
+        pred_pos_px = pred_pos * stride_pos
+        target_pos_px = target_pos * stride_pos
+
+        # NWD is applied only to small objects, following the normalized Gaussian Wasserstein formulation.
+        # References: https://arxiv.org/abs/2110.13389 and https://github.com/jwwangchn/NWD
+        wh = (target_pos_px[:, 2:4] - target_pos_px[:, 0:2]).clamp_min(0)
+        small_mask = wh.prod(1) < self.nwd_small_area
+        if self.nwd_weight > 0 and small_mask.any():
+            nwd = self.nwd_loss(pred_pos_px[small_mask], target_pos_px[small_mask])
+            nwd_weight = weight.squeeze(-1)[small_mask]
+            loss_iou = loss_iou + self.nwd_weight * (nwd * nwd_weight).sum() / target_scores_sum
+
+        # Keep RepGT only and intentionally omit RepBox for adjacent-object attraction handling.
+        # References: https://arxiv.org/abs/1711.07752 and https://github.com/bailvwangzi/repulsion_loss_ssd
+        if self.repgt_weight > 0 and gt_bboxes is not None and target_gt_idx is not None:
+            repgt_loss, _ = self.repulsion_loss(pred_bboxes * stride_full, gt_bboxes, target_gt_idx, fg_mask)
+            loss_iou = loss_iou + self.repgt_weight * repgt_loss.to(loss_iou.dtype)
 
         # DFL loss
         if self.dfl_loss:
@@ -580,6 +668,7 @@ class v8DetectionLoss:
 
         m = model.model[-1]  # Detect() module
         self.bce = nn.BCEWithLogitsLoss(reduction="none")
+        self.cls_pos_weight = float(getattr(h, "cls_pos_weight", 1.0))
         self.hyp = h
         self.stride = m.stride  # model strides
         self.nc = m.nc  # number of classes
@@ -602,7 +691,7 @@ class v8DetectionLoss:
             stride=self.stride.tolist(),
             topk2=tal_topk2,
         )
-        self.bbox_loss = BboxLoss(m.reg_max).to(device)
+        self.bbox_loss = BboxLoss(m.reg_max, h).to(device)
         self.proj = torch.arange(m.reg_max, dtype=torch.float, device=device)
 
     def preprocess(self, targets: torch.Tensor, batch_size: int, scale_tensor: torch.Tensor) -> torch.Tensor:
@@ -668,7 +757,18 @@ class v8DetectionLoss:
         target_scores_sum = max(target_scores.sum(), 1)
 
         # Cls loss with optional class weighting
-        bce_loss = self.bce(pred_scores, target_scores.to(dtype))  # (bs, num_anchors, nc)
+        # Keep the native BCE classification path while allowing a scalar positive weight.
+        # References: https://arxiv.org/abs/1708.02002 and https://github.com/facebookresearch/detectron2
+        if self.cls_pos_weight == 1.0:
+            bce_loss = self.bce(pred_scores, target_scores.to(dtype))  # (bs, num_anchors, nc)
+        else:
+            pos_weight = torch.tensor(self.cls_pos_weight, device=pred_scores.device, dtype=pred_scores.dtype)
+            bce_loss = F.binary_cross_entropy_with_logits(
+                pred_scores,
+                target_scores.to(dtype),
+                reduction="none",
+                pos_weight=pos_weight,
+            )
         if self.class_weights is not None:
             bce_loss *= self.class_weights
         loss[1] = bce_loss.sum() / target_scores_sum  # BCE
@@ -685,6 +785,8 @@ class v8DetectionLoss:
                 fg_mask,
                 imgsz,
                 stride_tensor,
+                gt_bboxes,
+                target_gt_idx,
             )
 
         loss[0] *= self.hyp.box  # box gain

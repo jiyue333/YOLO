@@ -108,6 +108,15 @@ kobj: 1.0 # (float) keypoint objectness loss gain (pose tasks)
 rle: 1.0 # (float) rle loss gain (pose tasks)
 angle: 1.0 # (float) oriented angle loss gain (obb tasks)
 nbs: 64 # (int) nominal batch size used for loss normalization
+wiou_alpha: 1.9 # (float) Wise-IoU v3 alpha, https://arxiv.org/abs/2301.10051
+wiou_delta: 3.0 # (float) Wise-IoU v3 delta, https://github.com/Instinct323/wiou
+wiou_momentum: 0.01 # (float) EMA momentum for Wise-IoU v3 running mean
+nwd_weight: 0.6 # (float) NWD loss gain for small boxes, https://arxiv.org/abs/2110.13389
+nwd_small_area: 1024.0 # (float) small-object pixel-area threshold for NWD, 32x32
+nwd_constant: 12.8 # (float) NWD normalization constant used by official small-object recipes
+repgt_weight: 0.4 # (float) Repulsion Loss RepGT gain, https://arxiv.org/abs/1711.07752
+repulsion_sigma: 0.5 # (float) Repulsion Loss smooth-ln sigma
+cls_pos_weight: 1.0 # (float) BCE positive weight; crowd recipe lowers this to 0.75
 hsv_h: 0.015 # (float) HSV hue augmentation fraction
 hsv_s: 0.7 # (float) HSV saturation augmentation fraction
 hsv_v: 0.4 # (float) HSV value (brightness) augmentation fraction
