@@ -1,0 +1,28 @@
+# CrowdHuman / person-detection dataset config for Ultralytics YOLO
+# This file lives in the project root for convenient training with script/train.py.
+# It points directly at the dataset directory under /gemini/data-1.
+#
+# Current raw annotations under /gemini/data-1/ann include multiple variants:
+# - annotation_full_train.json / annotation_full_val.json       -> full-body person boxes
+# - annotation_head_train.json / annotation_head_val.json       -> head boxes
+# - annotation_visible_train.json / annotation_visible_val.json -> visible-body boxes
+# - train.json / val.json                                       -> single-class person boxes
+# - annotation_train.json / annotation_val.json                 -> person + mask two-class boxes
+#
+# This YAML is configured for the common single-class person-detection setup.
+# If you convert annotation_train.json / annotation_val.json to YOLO labels,
+# update names to:
+#   0: person
+#   1: mask
+#
+# Note: the dataset directory currently contains JSON annotations but no labels/*.txt yet.
+# Before standard YOLO detect training, convert your chosen JSON annotations into YOLO labels.
+
+path: /gemini/data-1
+train: images/train
+val: images/val
+test: images/test
+
+names:
+  0: person
+  1: head

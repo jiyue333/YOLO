@@ -1,6 +1,9 @@
 .omc
 .omx
+.env
 __pycache__
 .venv
 .DS_Store
+juliet-heath
 
+.omx/
