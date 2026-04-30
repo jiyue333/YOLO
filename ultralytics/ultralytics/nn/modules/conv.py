@@ -186,56 +186,201 @@ class CoordAtt(nn.Module):
 
 
 class DySample(nn.Module):
-    """Lightweight dynamic-sampling upsample block.
+    """Dynamic upsampling via learned offsets and ``grid_sample``.
 
-    This dependency-free implementation keeps the DySample interface in the model graph while using bilinear sampling
-    plus a learned channel projection for smoke-safe training.
+    This follows the dependency-free ``lp`` path from the official DySample implementation and keeps an optional
+    projection so YOLO YAML can request a target channel count.
 
     References:
         https://arxiv.org/abs/2308.15085
         https://github.com/tiny-smart/dysample
     """
 
-    def __init__(self, c1: int, c2: int | None = None, scale: int = 2, mode: str = "bilinear"):
-        """Initialize a DySample-compatible upsampler."""
+    def __init__(self, c1: int, c2: int | None = None, scale: int = 2, groups: int = 4, dyscope: bool = False):
+        """Initialize an offset-based DySample upsampler."""
         super().__init__()
         c2 = c1 if c2 is None else c2
         self.scale = scale
-        self.mode = mode
         self.proj = nn.Identity() if c1 == c2 else Conv(c1, c2, 1)
+        self.groups = max(math.gcd(c2, groups), 1)
+        offset_channels = 2 * self.groups * scale**2
+        self.offset = nn.Conv2d(c2, offset_channels, 1)
+        nn.init.normal_(self.offset.weight, mean=0.0, std=0.001)
+        nn.init.constant_(self.offset.bias, 0.0)
+        if dyscope:
+            self.scope = nn.Conv2d(c2, offset_channels, 1, bias=False)
+            nn.init.constant_(self.scope.weight, 0.0)
+        self.register_buffer("init_pos", self._init_pos(), persistent=False)
+
+    def _init_pos(self) -> torch.Tensor:
+        """Return the base sub-pixel offsets used by DySample."""
+        h = torch.arange((-self.scale + 1) / 2, (self.scale - 1) / 2 + 1) / self.scale
+        grid = torch.stack(torch.meshgrid(h, h, indexing="ij")).transpose(1, 2)
+        return grid.repeat(1, self.groups, 1).reshape(1, -1, 1, 1)
+
+    def _sample(self, x: torch.Tensor, offset: torch.Tensor) -> torch.Tensor:
+        """Sample ``x`` at learned sub-pixel coordinates."""
+        b, _, h, w = offset.shape
+        offset = offset.view(b, 2, -1, h, w)
+        coords_h = torch.arange(h, dtype=x.dtype, device=x.device) + 0.5
+        coords_w = torch.arange(w, dtype=x.dtype, device=x.device) + 0.5
+        coords = torch.stack(torch.meshgrid(coords_w, coords_h, indexing="ij")).transpose(1, 2)
+        coords = coords.unsqueeze(1).unsqueeze(0)
+        normalizer = torch.tensor([w, h], dtype=x.dtype, device=x.device).view(1, 2, 1, 1, 1)
+        coords = 2 * (coords + offset) / normalizer - 1
+        coords = (
+            F.pixel_shuffle(coords.view(b, -1, h, w), self.scale)
+            .view(b, 2, -1, self.scale * h, self.scale * w)
+            .permute(0, 2, 3, 4, 1)
+            .contiguous()
+            .flatten(0, 1)
+        )
+        return F.grid_sample(
+            x.reshape(b * self.groups, -1, h, w),
+            coords,
+            mode="bilinear",
+            align_corners=False,
+            padding_mode="border",
+        ).view(b, -1, self.scale * h, self.scale * w)
 
     def forward(self, x: torch.Tensor) -> torch.Tensor:
-        """Upsample feature maps with a DySample-compatible module boundary."""
+        """Upsample feature maps with learned offsets."""
         x = self.proj(x)
-        return F.interpolate(x, scale_factor=self.scale, mode=self.mode, align_corners=False)
+        if hasattr(self, "scope"):
+            offset = self.offset(x) * self.scope(x).sigmoid() * 0.5 + self.init_pos
+        else:
+            offset = self.offset(x) * 0.25 + self.init_pos
+        return self._sample(x, offset)
 
 
 class FreqFusion(nn.Module):
-    """Frequency-aware upsampling block for small-object pyramid paths.
+    """Frequency-aware fusion of high-resolution and low-resolution features.
 
-    The block performs low-pass depthwise filtering and high-frequency residual restoration after upsampling, following
-    the FreqFusion motivation while avoiding external CUDA/MMCV dependencies.
+    The module mirrors the official operator shape: HR/LR channel compressors generate adaptive low-pass and high-pass
+    masks, the LR feature is upsampled by CARAFE-style content-aware reassembly, and the HR feature contributes a
+    high-frequency residual. The implementation is pure PyTorch so it can run without MMCV custom ops.
 
     References:
         https://arxiv.org/abs/2408.12879
         https://github.com/Linwei-Chen/FreqFusion
     """
 
-    def __init__(self, c1: int, c2: int | None = None, scale: int = 2, high_gain: float = 0.5):
-        """Initialize a pure-PyTorch frequency-aware upsampler."""
+    def __init__(
+        self,
+        lr_channels: int,
+        hr_channels: int | None = None,
+        c2: int | None = None,
+        scale: int = 2,
+        lowpass_kernel: int = 5,
+        highpass_kernel: int = 3,
+        compressed_channels: int = 64,
+        up_group: int = 1,
+        hr_residual: bool = True,
+    ):
+        """Initialize adaptive low/high-pass fusion for an FPN upsample step."""
         super().__init__()
-        c2 = c1 if c2 is None else c2
+        hr_channels = lr_channels if hr_channels is None else hr_channels
+        c2 = lr_channels if c2 is None else c2
         self.scale = scale
-        self.high_gain = high_gain
-        self.proj = nn.Identity() if c1 == c2 else Conv(c1, c2, 1)
-        self.lowpass = nn.Conv2d(c2, c2, kernel_size=3, padding=1, groups=c2, bias=False)
-        nn.init.constant_(self.lowpass.weight, 1.0 / 9.0)
+        self.lowpass_kernel = lowpass_kernel
+        self.highpass_kernel = highpass_kernel
+        self.up_group = up_group
+        self.hr_residual = hr_residual
+        compressed_channels = min(compressed_channels, max(lr_channels, hr_channels))
+        self.hr_channel_compressor = nn.Conv2d(hr_channels, compressed_channels, 1)
+        self.lr_channel_compressor = nn.Conv2d(lr_channels, compressed_channels, 1)
+        self.content_encoder = nn.Conv2d(compressed_channels, lowpass_kernel**2 * up_group, 3, padding=1)
+        self.content_encoder2 = nn.Conv2d(compressed_channels, highpass_kernel**2 * up_group, 3, padding=1)
+        self.lr_out = Conv(lr_channels, c2, 1)
+        self.hr_out = Conv(hr_channels, c2, 1)
+        self.register_buffer("hamming_lowpass", self._hamming2d(lowpass_kernel), persistent=False)
+        self.register_buffer("hamming_highpass", self._hamming2d(highpass_kernel), persistent=False)
+        self._init_weights()
 
-    def forward(self, x: torch.Tensor) -> torch.Tensor:
-        """Upsample while retaining high-frequency residuals useful for small object edges."""
-        upsampled = F.interpolate(self.proj(x), scale_factor=self.scale, mode="bilinear", align_corners=False)
-        low = self.lowpass(upsampled)
-        return low + self.high_gain * (upsampled - low)
+    @staticmethod
+    def _hamming2d(kernel: int) -> torch.Tensor:
+        """Create the 2D Hamming window used to regularize generated kernels."""
+        window = np.outer(np.hamming(kernel), np.hamming(kernel)).astype(np.float32)
+        return torch.from_numpy(window)[None, None]
+
+    def _init_weights(self) -> None:
+        """Match FreqFusion's small-random mask generator initialization."""
+        for m in self.modules():
+            if isinstance(m, nn.Conv2d):
+                nn.init.xavier_uniform_(m.weight)
+                if m.bias is not None:
+                    nn.init.constant_(m.bias, 0.0)
+        nn.init.normal_(self.content_encoder.weight, mean=0.0, std=0.001)
+        nn.init.normal_(self.content_encoder2.weight, mean=0.0, std=0.001)
+
+    def _kernel_normalizer(self, mask: torch.Tensor, kernel: int, hamming: torch.Tensor) -> torch.Tensor:
+        """Normalize generated kernels over the spatial support, following the official FreqFusion code."""
+        n, mask_c, h, w = mask.shape
+        mask_channel = mask_c // kernel**2
+        mask = mask.view(n, mask_channel, kernel**2, h, w)
+        mask = F.softmax(mask, dim=2, dtype=mask.dtype)
+        mask = mask.view(n, mask_channel, kernel, kernel, h, w)
+        mask = mask.permute(0, 1, 4, 5, 2, 3).reshape(n, -1, kernel, kernel)
+        mask = mask * hamming.to(device=mask.device, dtype=mask.dtype)
+        mask = mask / mask.sum(dim=(-1, -2), keepdim=True).clamp_min(torch.finfo(mask.dtype).eps)
+        return mask.view(n, mask_channel, h, w, -1).permute(0, 1, 4, 2, 3).reshape(n, -1, h, w)
+
+    @staticmethod
+    def _carafe(x: torch.Tensor, normed_mask: torch.Tensor, kernel: int, group: int = 1, up: int = 1) -> torch.Tensor:
+        """Content-aware feature reassembly fallback equivalent to the official non-MMCV path."""
+        b, c, h, w = x.shape
+        _, _, mh, mw = normed_mask.shape
+        pad = kernel // 2
+        pad_mode = "reflect" if h > pad and w > pad else "replicate"
+        unfold_x = F.unfold(F.pad(x, [pad] * 4, mode=pad_mode), kernel_size=(kernel, kernel))
+        unfold_x = unfold_x.view(b, c * kernel * kernel, h, w)
+        target_size = (mh, mw)
+        if up != 1 or (h, w) != target_size:
+            unfold_x = F.interpolate(unfold_x, size=target_size, mode="nearest")
+        unfold_x = unfold_x.view(b, c, kernel * kernel, mh, mw)
+        if group <= 1:
+            mask = normed_mask.view(b, 1, kernel * kernel, mh, mw)
+            return (unfold_x * mask).sum(dim=2)
+        if c % group != 0:
+            raise ValueError(f"FreqFusion CARAFE group={group} must divide channels={c}.")
+        mask = normed_mask.view(b, group, kernel * kernel, mh, mw)
+        unfold_x = unfold_x.view(b, group, c // group, kernel * kernel, mh, mw)
+        return (unfold_x * mask.unsqueeze(2)).sum(dim=3).view(b, c, mh, mw)
+
+    def forward(self, x: torch.Tensor | list[torch.Tensor] | tuple[torch.Tensor, torch.Tensor]) -> torch.Tensor:
+        """Fuse ``[low_resolution, high_resolution]`` features and return the upsampled LR path."""
+        if isinstance(x, (list, tuple)):
+            lr_feat, hr_feat = x
+        else:
+            lr_feat = x
+            hr_feat = F.interpolate(x, scale_factor=self.scale, mode="nearest")
+
+        compressed_hr = self.hr_channel_compressor(hr_feat)
+        compressed_lr = self.lr_channel_compressor(lr_feat)
+
+        mask_hr = self._kernel_normalizer(
+            self.content_encoder2(compressed_hr), self.highpass_kernel, self.hamming_highpass
+        )
+        compressed_hr = compressed_hr + compressed_hr - self._carafe(
+            compressed_hr, mask_hr, self.highpass_kernel, self.up_group, 1
+        )
+
+        mask_lr_hr = self.content_encoder(compressed_hr)
+        mask_lr_init = self._kernel_normalizer(mask_lr_hr, self.lowpass_kernel, self.hamming_lowpass)
+        mask_lr_from_lr = self._carafe(
+            self.content_encoder(compressed_lr), mask_lr_init, self.lowpass_kernel, self.up_group, self.scale
+        )
+        if mask_lr_from_lr.shape[-2:] != compressed_hr.shape[-2:]:
+            mask_lr_from_lr = F.interpolate(mask_lr_from_lr, size=compressed_hr.shape[-2:], mode="nearest")
+        mask_lr = self._kernel_normalizer(mask_lr_hr + mask_lr_from_lr, self.lowpass_kernel, self.hamming_lowpass)
+
+        lr_feat = self._carafe(lr_feat, mask_lr, self.lowpass_kernel, self.up_group, self.scale)
+        if lr_feat.shape[-2:] != hr_feat.shape[-2:]:
+            lr_feat = F.interpolate(lr_feat, size=hr_feat.shape[-2:], mode="bilinear", align_corners=False)
+
+        hr_high = hr_feat - self._carafe(hr_feat, mask_hr, self.highpass_kernel, self.up_group, 1)
+        hr_feat = hr_feat + hr_high if self.hr_residual else hr_high
+        return self.lr_out(lr_feat) + self.hr_out(hr_feat)
 
 
 class LightConv(nn.Module):

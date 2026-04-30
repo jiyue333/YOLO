@@ -34,11 +34,11 @@ head:
   - [[-1, 6], 1, Concat, [1]]
   - [-1, 2, AAF, [512, 7, True]] # 13 AAF(P4)
 
-  - [-1, 1, FreqFusion, [512, 2]] # 14 P4->P3 frequency-aware upsample
+  - [[-1, 4], 1, FreqFusion, [512, 2]] # 14 P4->P3 frequency-aware HR/LR fusion
   - [[-1, 4], 1, Concat, [1]]
   - [-1, 2, SAF, [256, 5, True]] # 16 SAF(P3)
 
-  - [-1, 1, FreqFusion, [256, 2]] # 17 P3->P2 frequency-aware upsample
+  - [[-1, 2], 1, FreqFusion, [256, 2]] # 17 P3->P2 frequency-aware HR/LR fusion
   - [[-1, 2], 1, Concat, [1]]
   - [-1, 2, SAF, [128, 5, True]] # 19 SAF(P2)
   - [-1, 1, CoordAtt, [128]] # 20 P2 CA

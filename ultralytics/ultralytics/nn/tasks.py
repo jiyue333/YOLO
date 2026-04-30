@@ -1605,7 +1605,6 @@ def parse_model(d, ch, verbose=True):
             DWConv,
             DySample,
             Focus,
-            FreqFusion,
             BottleneckCSP,
             C1,
             C2,
@@ -1701,6 +1700,16 @@ def parse_model(d, ch, verbose=True):
             args = [ch[f]]
         elif m is Concat:
             c2 = sum(ch[x] for x in f)
+        elif m is FreqFusion:
+            if isinstance(f, (list, tuple)):
+                lr_ch = ch[f[0]]
+                hr_ch = ch[f[1]] if len(f) > 1 else None
+            else:
+                lr_ch, hr_ch = ch[f], None
+            c2 = args[0] if args else lr_ch
+            if c2 != nc:
+                c2 = make_divisible(min(c2, max_channels) * width, 8)
+            args = [lr_ch, hr_ch, c2, *args[1:]]
         elif m in frozenset(
             {
                 Detect,

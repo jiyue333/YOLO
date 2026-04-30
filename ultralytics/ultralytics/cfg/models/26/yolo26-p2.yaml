@@ -38,11 +38,11 @@ head:
   - [[-1, 6], 1, Concat, [1]] # cat backbone P4
   - [-1, 2, C3k2, [512, True]] # 13
 
-  - [-1, 1, FreqFusion, [512, 2]] # P4->P3 frequency-aware upsample; https://arxiv.org/abs/2408.12879
+  - [[-1, 4], 1, FreqFusion, [512, 2]] # P4->P3 frequency-aware HR/LR fusion; https://arxiv.org/abs/2408.12879
   - [[-1, 4], 1, Concat, [1]] # cat backbone P3
   - [-1, 2, C3k2, [256, True]] # 16 (P3/8-small)
 
-  - [-1, 1, FreqFusion, [256, 2]] # P3->P2 frequency-aware upsample; https://github.com/Linwei-Chen/FreqFusion
+  - [[-1, 2], 1, FreqFusion, [256, 2]] # P3->P2 frequency-aware HR/LR fusion; https://github.com/Linwei-Chen/FreqFusion
   - [[-1, 2], 1, Concat, [1]] # cat backbone P2
   - [-1, 2, C3k2, [128, True]] # 19 (P2/4-xsmall)
   - [-1, 1, CoordAtt, [128]] # 20 (P2/4 CA); https://arxiv.org/abs/2103.02907

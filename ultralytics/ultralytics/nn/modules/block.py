@@ -84,47 +84,149 @@ class DFL(nn.Module):
 
 
 class ShiftwiseConv(nn.Module):
-    """Shiftwise convolution used inside RepHMS blocks.
+    """Shift-add large-kernel convolution used inside RepHMS blocks.
+
+    The official ShiftwiseConv relies on custom shift-add kernels. This pure PyTorch fallback keeps the same design
+    intent by applying small depthwise kernels to shifted feature maps and summing the branches before pointwise mixing.
 
     References:
         https://arxiv.org/abs/2401.12736
         https://github.com/lidc54/shift-wiseConv
     """
 
-    def __init__(self, c1: int, c2: int, k: int = 5, s: int = 1, act: bool = True):
-        """Initialize a pure-PyTorch shiftwise large-kernel approximation."""
+    def __init__(self, c1: int, c2: int, k: int = 5, s: int = 1, small_k: int = 3, act: bool = True):
+        """Initialize shifted small-kernel branches that emulate a larger receptive field."""
         super().__init__()
-        p = autopad(k)
-        self.dw = nn.Conv2d(c1, c1, k, s, p, groups=c1, bias=False)
-        self.h = nn.Conv2d(c1, c1, (1, k), 1, (0, p), groups=c1, bias=False)
-        self.v = nn.Conv2d(c1, c1, (k, 1), 1, (p, 0), groups=c1, bias=False)
+        self.offsets = self._make_offsets(k)
+        self.branches = nn.ModuleList(
+            nn.Conv2d(c1, c1, small_k, s, autopad(small_k), groups=c1, bias=False) for _ in self.offsets
+        )
+        self.branch_weight = nn.Parameter(torch.ones(len(self.offsets)) / len(self.offsets))
+        self.bn = nn.BatchNorm2d(c1)
         self.pw = Conv(c1, c2, 1, act=act)
 
+    @staticmethod
+    def _make_offsets(k: int) -> tuple[tuple[int, int], ...]:
+        """Return identity, axial, and diagonal shifts spanning the requested large kernel."""
+        radius = max(k // 2, 1)
+        if radius == 1:
+            return ((0, 0),)
+        return (
+            (0, 0),
+            (0, -radius),
+            (0, radius),
+            (-radius, 0),
+            (radius, 0),
+            (-radius, -radius),
+            (-radius, radius),
+            (radius, -radius),
+            (radius, radius),
+        )
+
+    @staticmethod
+    def _shift(x: torch.Tensor, dy: int, dx: int) -> torch.Tensor:
+        """Shift a tensor spatially while preserving shape."""
+        if dy == 0 and dx == 0:
+            return x
+        h, w = x.shape[-2:]
+        padded = F.pad(x, (max(dx, 0), max(-dx, 0), max(dy, 0), max(-dy, 0)))
+        y1, x1 = max(-dy, 0), max(-dx, 0)
+        return padded[..., y1 : y1 + h, x1 : x1 + w]
+
     def forward(self, x: torch.Tensor) -> torch.Tensor:
-        """Apply large-kernel and shifted axial depthwise branches."""
-        return self.pw(self.dw(x) + self.h(x) + self.v(x))
+        """Apply shifted small-kernel branches and pointwise mixing."""
+        weights = self.branch_weight.softmax(0)
+        y = sum(w * branch(self._shift(x, dy, dx)) for w, branch, (dy, dx) in zip(weights, self.branches, self.offsets))
+        return self.pw(self.bn(y))
+
+
+class _ShiftwiseBottleneck(nn.Module):
+    """Two-stage ShiftwiseConv bottleneck used by RepHMS depth paths."""
+
+    def __init__(
+        self,
+        c1: int,
+        c2: int,
+        k: int = 5,
+        shortcut: bool = True,
+        expansion: float = 1.0,
+        small_k: int = 3,
+    ):
+        """Initialize the MHAF depth bottleneck with two shiftwise large-kernel stages."""
+        super().__init__()
+        c_ = max(int(c1 * expansion), 1)
+        self.cv1 = Conv(c1, c_, 1)
+        self.sw1 = ShiftwiseConv(c_, c_, k=k, small_k=small_k)
+        self.cv2 = Conv(c_, c_, 1)
+        self.sw2 = ShiftwiseConv(c_, c_, k=k, small_k=small_k)
+        self.cv3 = Conv(c_, c2, 1)
+        self.add = shortcut and c1 == c2
+
+    def forward(self, x: torch.Tensor) -> torch.Tensor:
+        """Run a two-depth heterogeneous large-kernel path."""
+        y = self.cv3(self.sw2(self.cv2(self.sw1(self.cv1(x)))))
+        return x + y if self.add else y
 
 
 class RepHMS(nn.Module):
-    """Reparameterized Heterogeneous Multi-Scale block with ShiftwiseConv kernels.
+    """Reparameterized Heterogeneous Multi-Scale block with width/depth cascades.
+
+    This adapts the official MHAF-YOLO RepHMS layout: channels are split into heterogeneous width branches, later
+    branches receive cascaded outputs from earlier depth paths, and GHFKS selects the stage kernel size via YAML.
 
     References:
         https://arxiv.org/abs/2502.04656
         https://github.com/yang-0201/MHAF-YOLO
     """
 
-    def __init__(self, c1: int, c2: int, n: int = 1, k: int = 5, shortcut: bool = True):
-        """Initialize RepHMS with a stage-specific GHFKS kernel size."""
+    def __init__(
+        self,
+        c1: int,
+        c2: int,
+        n: int = 1,
+        k: int = 5,
+        shortcut: bool = True,
+        width: int = 3,
+        expansion: float = 0.5,
+        depth_expansion: float = 1.0,
+        small_k: int = 3,
+    ):
+        """Initialize RepHMS with stage-specific GHFKS kernel size and heterogeneous paths."""
         super().__init__()
-        c_ = max(c2 // 2, 1)
-        self.cv1 = Conv(c1, c_, 1)
-        self.blocks = nn.Sequential(*(ShiftwiseConv(c_, c_, k=k) for _ in range(n)))
-        self.cv2 = Conv(c_, c2, 1)
+        self.width = max(width, 2)
+        self.depth = max(n, 1)
+        self.c_ = max(int(c2 * expansion), 1)
+        self.cv1 = Conv(c1, self.c_ * self.width, 1)
+        self.paths = nn.ModuleList(
+            nn.ModuleList(
+                _ShiftwiseBottleneck(
+                    self.c_, self.c_, k=k, shortcut=shortcut, expansion=depth_expansion, small_k=small_k
+                )
+                for _ in range(self.depth)
+            )
+            for _ in range(self.width - 1)
+        )
+        self.cv2 = Conv(self.c_ * (1 + (self.width - 1) * self.depth), c2, 1)
         self.add = shortcut and c1 == c2
 
     def forward(self, x: torch.Tensor) -> torch.Tensor:
-        """Run the heterogeneous multi-scale block."""
-        y = self.cv2(self.blocks(self.cv1(x)))
+        """Run heterogeneous width branches with depth cascades."""
+        y = self.cv1(x)
+        branches = [y[:, i * self.c_ : (i + 1) * self.c_] for i in range(self.width)]
+        branches[1] = branches[1] + branches[0]
+        cascade: list[torch.Tensor] = []
+        outputs = [branches[0]]
+        for i in range(self.width - 1):
+            for j in range(self.depth):
+                if i > 0 and j < len(cascade):
+                    branches[i + 1] = branches[i + 1] + cascade[j]
+                    if j == self.depth - 1:
+                        cascade = [cascade[-1]] if self.depth > 1 else []
+                branches[i + 1] = self.paths[i][j](branches[i + 1])
+                outputs.append(branches[i + 1])
+                if i < self.width - 2:
+                    cascade.append(branches[i + 1])
+        y = self.cv2(torch.cat(outputs, 1))
         return x + y if self.add else y
 
 
@@ -133,7 +235,7 @@ class SAF(RepHMS):
 
     def __init__(self, c1: int, c2: int, n: int = 1, k: int = 5, shortcut: bool = True):
         """Initialize SAF from the MHAF-YOLO MAFPN design."""
-        super().__init__(c1, c2, n=n, k=k, shortcut=shortcut)
+        super().__init__(c1, c2, n=n, k=k, shortcut=shortcut, width=2, expansion=0.5, depth_expansion=1.0)
 
 
 class AAF(RepHMS):
@@ -141,8 +243,7 @@ class AAF(RepHMS):
 
     def __init__(self, c1: int, c2: int, n: int = 1, k: int = 7, shortcut: bool = True):
         """Initialize AAF from the MHAF-YOLO MAFPN design."""
-        super().__init__(c1, c2, n=n, k=k, shortcut=shortcut)
-        # return self.conv(x.view(b, self.c1, 4, a).softmax(1)).view(b, 4, a)
+        super().__init__(c1, c2, n=n, k=k, shortcut=shortcut, width=3, expansion=0.5, depth_expansion=1.5)
 
 
 class Proto(nn.Module):

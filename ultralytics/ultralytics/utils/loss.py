@@ -113,7 +113,7 @@ def _wise_iou_v3_xyxy(
     alpha: float = 1.9,
     delta: float = 3.0,
     eps: float = 1e-7,
-) -> tuple[torch.Tensor, torch.Tensor]:
+) -> tuple[torch.Tensor, torch.Tensor, torch.Tensor]:
     """Compute Wise-IoU v3 loss for matched xyxy boxes.
 
     References:
@@ -144,7 +144,7 @@ def _wise_iou_v3_xyxy(
     distance_gain = torch.exp((center_dist / convex_diag).detach())
     beta = (iou_loss.detach() / iou_mean.clamp_min(eps)).clamp_min(eps)
     focusing = beta / (delta * torch.pow(torch.tensor(alpha, device=beta.device, dtype=beta.dtype), beta - delta))
-    return (distance_gain * focusing * iou_loss).squeeze(-1), iou.squeeze(-1)
+    return (distance_gain * focusing * iou_loss).squeeze(-1), iou.squeeze(-1), iou_loss.squeeze(-1)
 
 
 class BboxLoss(nn.Module):
@@ -188,15 +188,18 @@ class BboxLoss(nn.Module):
 
         # Wise-IoU v3 replaces CIoU as the main regression term.
         # References: https://arxiv.org/abs/2301.10051 and https://github.com/Instinct323/wiou
-        wiou_loss, iou = _wise_iou_v3_xyxy(
+        wiou_loss, iou, raw_iou_loss = _wise_iou_v3_xyxy(
             pred_pos,
             target_pos,
             self.wiou_iou_mean.to(device=pred_pos.device, dtype=pred_pos.dtype),
             alpha=self.wiou_alpha,
             delta=self.wiou_delta,
         )
-        if self.training and wiou_loss.numel():
-            self.wiou_iou_mean.mul_(1.0 - self.wiou_momentum).add_(wiou_loss.detach().mean() * self.wiou_momentum)
+        if self.training and raw_iou_loss.numel():
+            # Wise-IoU updates the running mean from raw IoU loss before applying distance/focusing terms.
+            self.wiou_iou_mean.mul_(1.0 - self.wiou_momentum).add_(
+                raw_iou_loss.detach().mean() * self.wiou_momentum
+            )
         loss_iou = (wiou_loss.unsqueeze(-1) * weight).sum() / target_scores_sum
 
         stride_full = stride.view(1, -1, 1).expand(pred_bboxes.shape[0], -1, 1)

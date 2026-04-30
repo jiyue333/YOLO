@@ -816,7 +816,7 @@ class Mosaic(BaseMixTransform):
 
 
 class SelectMosaic(Mosaic):
-    """Small-object-biased Mosaic sampler.
+    """Small-object-biased Mosaic sampler with region-level tile selection.
 
     References:
         https://arxiv.org/abs/2406.05412
@@ -841,9 +841,108 @@ class SelectMosaic(Mosaic):
         pool = list(self.dataset.buffer) if self.buffer_enabled and len(self.dataset.buffer) else list(range(len(self.dataset)))
         if not pool:
             return super().get_indexes()
-        sample = random.choices(pool, k=min(max((self.n - 1) * 4, self.n - 1), len(pool) * 2))
+        required = self.n - 1
+        sample_pool = pool if len(pool) >= required else list(range(len(self.dataset)))
+        sample = random.choices(sample_pool, k=max(required * 4, required))
         sample = sorted(sample, key=self._small_count, reverse=True)
-        return sample[: self.n - 1]
+        return sample[:required]
+
+    @staticmethod
+    def _boxes_xyxy(labels_patch: dict[str, Any], w: int, h: int) -> np.ndarray:
+        """Return patch boxes as absolute xyxy without mutating Instances."""
+        instances = labels_patch.get("instances")
+        if instances is None or not len(instances):
+            return np.zeros((0, 4), dtype=np.float32)
+        boxes = instances.bboxes.copy().astype(np.float32)
+        if instances.normalized:
+            boxes[:, [0, 2]] *= w
+            boxes[:, [1, 3]] *= h
+        fmt = instances._bboxes.format
+        if fmt == "xywh":
+            boxes = xywh2xyxy(boxes)
+        elif fmt == "ltwh":
+            boxes[:, 2] += boxes[:, 0]
+            boxes[:, 3] += boxes[:, 1]
+        return boxes
+
+    def _select_region(
+        self,
+        labels_patch: dict[str, Any],
+        w: int,
+        h: int,
+        crop_w: int,
+        crop_h: int,
+        default_xy: tuple[int, int],
+    ) -> tuple[int, int]:
+        """Select a fine-grained crop region centered on dense small objects."""
+        crop_w, crop_h = max(1, min(crop_w, w)), max(1, min(crop_h, h))
+        default_x = int(np.clip(default_xy[0], 0, max(w - crop_w, 0)))
+        default_y = int(np.clip(default_xy[1], 0, max(h - crop_h, 0)))
+        boxes = self._boxes_xyxy(labels_patch, w, h)
+        if len(boxes) == 0:
+            return default_x, default_y
+
+        wh = (boxes[:, 2:4] - boxes[:, 0:2]).clip(0)
+        area = wh[:, 0] * wh[:, 1]
+        small = area / max(float(w * h), 1.0) < self.small_area
+        if not small.any():
+            return default_x, default_y
+
+        centers = (boxes[:, 0:2] + boxes[:, 2:4]) * 0.5
+        candidates = np.concatenate(
+            (centers[small], np.array([[default_x + crop_w * 0.5, default_y + crop_h * 0.5]], dtype=np.float32)),
+            axis=0,
+        )
+        best_score, best_xy = -1.0, (default_x, default_y)
+        for cx, cy in candidates:
+            x1 = int(np.clip(round(cx - crop_w * 0.5), 0, max(w - crop_w, 0)))
+            y1 = int(np.clip(round(cy - crop_h * 0.5), 0, max(h - crop_h, 0)))
+            x2, y2 = x1 + crop_w, y1 + crop_h
+            inter_w = (np.minimum(boxes[:, 2], x2) - np.maximum(boxes[:, 0], x1)).clip(0)
+            inter_h = (np.minimum(boxes[:, 3], y2) - np.maximum(boxes[:, 1], y1)).clip(0)
+            visible = (inter_w * inter_h) / np.maximum(area, 1.0)
+            score = float((visible[small] > 0.5).sum() * 100.0 + visible[small].sum() + visible[~small].sum() * 0.01)
+            if score > best_score:
+                best_score, best_xy = score, (x1, y1)
+        return best_xy
+
+    def _mosaic4(self, labels: dict[str, Any]) -> dict[str, Any]:
+        """Create a 2x2 Select-Mosaic with dense-small-object region crops for each tile."""
+        mosaic_labels = []
+        s = self.imgsz
+        yc, xc = (int(random.uniform(-x, 2 * s + x)) for x in self.border)
+        for i in range(4):
+            labels_patch = labels if i == 0 else labels["mix_labels"][i - 1]
+            img = labels_patch["img"]
+            h, w = labels_patch.pop("resized_shape")
+
+            if i == 0:
+                img4 = np.full((s * 2, s * 2, img.shape[2]), 114, dtype=np.uint8)
+                x1a, y1a, x2a, y2a = max(xc - w, 0), max(yc - h, 0), xc, yc
+                x1b, y1b = w - (x2a - x1a), h - (y2a - y1a)
+            elif i == 1:
+                x1a, y1a, x2a, y2a = xc, max(yc - h, 0), min(xc + w, s * 2), yc
+                x1b, y1b = 0, h - (y2a - y1a)
+            elif i == 2:
+                x1a, y1a, x2a, y2a = max(xc - w, 0), yc, xc, min(s * 2, yc + h)
+                x1b, y1b = w - (x2a - x1a), 0
+            else:
+                x1a, y1a, x2a, y2a = xc, yc, min(xc + w, s * 2), min(s * 2, yc + h)
+                x1b, y1b = 0, 0
+
+            crop_w, crop_h = x2a - x1a, y2a - y1a
+            if crop_w <= 0 or crop_h <= 0:
+                continue
+            x1b, y1b = self._select_region(labels_patch, w, h, crop_w, crop_h, (x1b, y1b))
+            x2b, y2b = x1b + crop_w, y1b + crop_h
+
+            img4[y1a:y2a, x1a:x2a] = img[y1b:y2b, x1b:x2b]
+            labels_patch = self._update_labels(labels_patch, x1a - x1b, y1a - y1b)
+            mosaic_labels.append(labels_patch)
+
+        final_labels = self._cat_labels(mosaic_labels)
+        final_labels["img"] = img4
+        return final_labels
 
 
 class MixUp(BaseMixTransform):
