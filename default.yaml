@@ -19,7 +19,7 @@ experiment:
   task: detect # 任务类型：detect | segment | classify | pose | obb
   mode: train # 仅作为记录；train.py 会强制用 train，val.py 会强制用 val
   project: runs/smoke # 实验输出根目录，脚本会自动转为绝对路径
-  name: scale_multiscale_keep_p5 # 当前实验名称，对应 project/name
+  name: tal_topk_cls_balance # 当前实验名称，对应 project/name
   exist_ok: true # 是否允许复用已有同名实验目录
   verbose: true # 是否打印详细日志
   seed: 0 # 随机种子
@@ -122,7 +122,10 @@ hyperparameters:
   nwd_constant: 12.8 # NWD normalized Gaussian Wasserstein constant
   repgt_weight: 0.4 # Repulsion Loss 仅 RepGT 权重；参考 https://arxiv.org/abs/1711.07752
   repulsion_sigma: 0.5 # Repulsion Loss smooth-ln sigma
-  cls_pos_weight: 1.0 # 当前阶段不改分类 BCE；标签分配阶段会降到 0.75
+  tal_topk: 20 # TOOD/TAL dense-crowd one-to-many topk；参考 https://arxiv.org/abs/2108.07755 和 Ultralytics TAL
+  tal_topk_one2one: 7 # 保留 YOLO26 one-to-one/e2e 更严格候选设置
+  tal_topk_one2one_secondary: 1 # one-to-one 末级筛选保持单候选
+  cls_pos_weight: 0.75 # BCE 正样本权重；参考 Focal Loss/Detectron2 抑制过度自信
 
 augmentations:
   hsv_h: 0.014 # 官方 YOLO26n 配方 HSV 色调增强强度

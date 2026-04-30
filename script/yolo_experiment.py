@@ -133,6 +133,9 @@ SECTION_TO_KEYS: dict[str, tuple[str, ...]] = {
         "nwd_constant",
         "repgt_weight",
         "repulsion_sigma",
+        "tal_topk",
+        "tal_topk_one2one",
+        "tal_topk_one2one_secondary",
         "cls_pos_weight",
     ),
     "augmentations": (

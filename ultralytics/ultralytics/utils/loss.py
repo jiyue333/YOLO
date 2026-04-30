@@ -1501,8 +1501,15 @@ class E2ELoss:
 
     def __init__(self, model, loss_fn=v8DetectionLoss):
         """Initialize E2ELoss with one-to-many and one-to-one detection losses using the provided model."""
-        self.one2many = loss_fn(model, tal_topk=10)
-        self.one2one = loss_fn(model, tal_topk=7, tal_topk2=1)
+        h = model.args
+        # Dense-crowd one-to-many uses a larger TAL candidate pool while the one-to-one branch stays strict.
+        # References: TOOD/TAL https://arxiv.org/abs/2108.07755 and Ultralytics TaskAlignedAssigner.
+        self.one2many = loss_fn(model, tal_topk=int(getattr(h, "tal_topk", 20)))
+        self.one2one = loss_fn(
+            model,
+            tal_topk=int(getattr(h, "tal_topk_one2one", 7)),
+            tal_topk2=int(getattr(h, "tal_topk_one2one_secondary", 1)),
+        )
         self.updates = 0
         self.total = 1.0
         # init gain

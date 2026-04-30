@@ -232,6 +232,9 @@ CFG_INT_KEYS = frozenset(
         "vid_stride",
         "line_width",
         "nbs",
+        "tal_topk",
+        "tal_topk_one2one",
+        "tal_topk_one2one_secondary",
         "mixup_cache_size",
         "save_period",
     }

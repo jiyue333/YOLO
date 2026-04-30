@@ -116,7 +116,10 @@ nwd_small_area: 1024.0 # (float) small-object pixel-area threshold for NWD, 32x3
 nwd_constant: 12.8 # (float) NWD normalization constant used by official small-object recipes
 repgt_weight: 0.4 # (float) Repulsion Loss RepGT gain, https://arxiv.org/abs/1711.07752
 repulsion_sigma: 0.5 # (float) Repulsion Loss smooth-ln sigma
-cls_pos_weight: 1.0 # (float) BCE positive weight; crowd recipe lowers this to 0.75
+tal_topk: 20 # (int) one-to-many TAL top-k for dense crowds, TOOD https://arxiv.org/abs/2108.07755
+tal_topk_one2one: 7 # (int) keep YOLO26 one-to-one/e2e branch strict
+tal_topk_one2one_secondary: 1 # (int) one-to-one final TAL top-k filter
+cls_pos_weight: 0.75 # (float) BCE positive weight; Focal Loss/Detectron2-inspired confidence damping
 hsv_h: 0.015 # (float) HSV hue augmentation fraction
 hsv_s: 0.7 # (float) HSV saturation augmentation fraction
 hsv_v: 0.4 # (float) HSV value (brightness) augmentation fraction
