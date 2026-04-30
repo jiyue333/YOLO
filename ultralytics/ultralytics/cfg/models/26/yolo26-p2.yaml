@@ -45,17 +45,19 @@ head:
   - [-1, 1, nn.Upsample, [None, 2, "nearest"]]
   - [[-1, 2], 1, Concat, [1]] # cat backbone P2
   - [-1, 2, C3k2, [128, True]] # 19 (P2/4-xsmall)
+  - [-1, 1, CoordAtt, [128]] # 20 (P2/4 CA); https://arxiv.org/abs/2103.02907
 
   - [-1, 1, Conv, [128, 3, 2]]
   - [[-1, 16], 1, Concat, [1]] # cat head P3
-  - [-1, 2, C3k2, [256, True]] # 22 (P3/8-small)
+  - [-1, 2, C3k2, [256, True]] # 23 (P3/8-small)
+  - [-1, 1, CoordAtt, [256]] # 24 (P3/8 CA); https://github.com/houqb/CoordAttention
 
   - [-1, 1, Conv, [256, 3, 2]]
   - [[-1, 13], 1, Concat, [1]] # cat head P4
-  - [-1, 2, C3k2, [512, True]] # 25 (P4/16-medium)
+  - [-1, 2, C3k2, [512, True]] # 27 (P4/16-medium)
 
   - [-1, 1, Conv, [512, 3, 2]]
   - [[-1, 10], 1, Concat, [1]] # cat head P5
-  - [-1, 1, C3k2, [1024, True, 0.5, True]] # 28 (P5/32-large)
+  - [-1, 1, C3k2, [1024, True, 0.5, True]] # 30 (P5/32-large)
 
-  - [[19, 22, 25, 28], 1, Detect, [nc]] # Detect(P2/4, P3/8, P4/16, P5/32); keep P5 for non-pure-crowd scenes
+  - [[20, 24, 27, 30], 1, Detect, [nc]] # Detect(P2/4, P3/8, P4/16, P5/32); CA only on P2/P3

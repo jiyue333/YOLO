@@ -15,6 +15,7 @@ __all__ = (
     "Concat",
     "Conv",
     "Conv2",
+    "CoordAtt",
     "ConvTranspose",
     "DWConv",
     "DWConvTranspose2d",
@@ -145,6 +146,40 @@ class Conv2(Conv):
         self.conv.weight.data += w
         self.__delattr__("cv2")
         self.forward = self.forward_fuse
+
+
+class CoordAtt(nn.Module):
+    """Coordinate Attention for small-object neck features.
+
+    References:
+        https://arxiv.org/abs/2103.02907
+        https://github.com/houqb/CoordAttention
+    """
+
+    def __init__(self, c1: int, c2: int | None = None, reduction: int = 32):
+        """Initialize Coordinate Attention with optional channel projection."""
+        super().__init__()
+        c2 = c1 if c2 is None else c2
+        mip = max(8, c1 // reduction)
+        self.proj = nn.Identity() if c1 == c2 else Conv(c1, c2, 1)
+        self.conv1 = nn.Conv2d(c2, mip, kernel_size=1, stride=1, padding=0, bias=False)
+        self.bn1 = nn.BatchNorm2d(mip)
+        self.act = nn.Hardswish(inplace=True)
+        self.conv_h = nn.Conv2d(mip, c2, kernel_size=1, stride=1, padding=0, bias=True)
+        self.conv_w = nn.Conv2d(mip, c2, kernel_size=1, stride=1, padding=0, bias=True)
+
+    def forward(self, x: torch.Tensor) -> torch.Tensor:
+        """Apply coordinate attention over height and width separately."""
+        x = self.proj(x)
+        identity = x
+        _, _, h, w = x.shape
+        x_h = x.mean(dim=3, keepdim=True)
+        x_w = x.mean(dim=2, keepdim=True).permute(0, 1, 3, 2)
+        y = torch.cat((x_h, x_w), dim=2)
+        y = self.act(self.bn1(self.conv1(y)))
+        x_h, x_w = torch.split(y, [h, w], dim=2)
+        x_w = x_w.permute(0, 1, 3, 2)
+        return identity * self.conv_h(x_h).sigmoid() * self.conv_w(x_w).sigmoid()
 
 
 class LightConv(nn.Module):
