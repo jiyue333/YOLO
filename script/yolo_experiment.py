@@ -13,7 +13,7 @@ import yaml
 WORKSPACE_ROOT = Path(__file__).resolve().parents[1]
 LOCAL_ULTRALYTICS_REPO = WORKSPACE_ROOT / "ultralytics"
 LOCAL_ULTRALYTICS_PACKAGE = LOCAL_ULTRALYTICS_REPO / "ultralytics"
-
+# 
 SECTION_TO_KEYS: dict[str, tuple[str, ...]] = {
     "experiment": (
         "task",
@@ -155,7 +155,7 @@ META_SECTIONS = {"meta"}
 RAW_SECTIONS = {"raw", "custom"}
 VALID_YOLO_KEYS = {key for keys in SECTION_TO_KEYS.values() for key in keys} | {"cfg"}
 TOP_LEVEL_HINTS = set(SECTION_TO_KEYS) | META_SECTIONS | RAW_SECTIONS | VALID_YOLO_KEYS
-PATH_LIKE_KEYS = {"model", "data", "project", "cfg", "resume", "source", "tracker"}
+PATH_LIKE_KEYS = {"model", "pretrained", "data", "project", "cfg", "resume", "source", "tracker"}
 
 
 class ConfigError(ValueError):
