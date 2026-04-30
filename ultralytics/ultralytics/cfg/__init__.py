@@ -194,6 +194,7 @@ CFG_FRACTION_KEYS = frozenset(
         "weight_decay",
         "warmup_momentum",
         "warmup_bias_lr",
+        "ema_decay",
         "hsv_h",
         "hsv_s",
         "hsv_v",

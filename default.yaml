@@ -19,7 +19,7 @@ experiment:
   task: detect # 任务类型：detect | segment | classify | pose | obb
   mode: train # 仅作为记录；train.py 会强制用 train，val.py 会强制用 val
   project: runs/smoke # 实验输出根目录，脚本会自动转为绝对路径
-  name: optimizer_cosine_warmup # 当前实验名称，对应 project/name
+  name: epochs_ema_decay # 当前实验名称，对应 project/name
   exist_ok: true # 是否允许复用已有同名实验目录
   verbose: true # 是否打印详细日志
   seed: 0 # 随机种子
@@ -37,7 +37,7 @@ dataset:
   single_cls: false # 是否把所有类别视为单类别任务
 
 train:
-  epochs: 1 # smoke：每阶段提交前跑通 1 epoch
+  epochs: 300 # 主训练：Crowd 场景长训 300 epochs；smoke 前临时改为 1
   time: null # 最大训练时长（单位：小时）；设置后会覆盖 epochs
   patience: 100 # 早停容忍轮数
   batch: 1 # smoke batch
@@ -53,6 +53,7 @@ train:
   close_mosaic: 15 # YOLOX close_mosaic 策略：最后 10-15 epoch 关闭强增强
   resume: false # 是否恢复训练；也可以填 last.pt 路径
   amp: true # 是否启用自动混合精度 AMP
+  ema_decay: 0.9999 # Mean Teacher/Ultralytics EMA 最大衰减；参考 https://arxiv.org/abs/1703.01780
   profile: false # 训练时是否额外 profile ONNX/TensorRT 速度
   multi_scale: 0.5 # Ultralytics 多尺度训练：输入在 [0.5x, 1.5x] imgsz 间抖动；P5 主线保留
 

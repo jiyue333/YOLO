@@ -53,6 +53,7 @@ SECTION_TO_KEYS: dict[str, tuple[str, ...]] = {
         "close_mosaic",
         "resume",
         "amp",
+        "ema_decay",
         "profile",
         "multi_scale",
     ),

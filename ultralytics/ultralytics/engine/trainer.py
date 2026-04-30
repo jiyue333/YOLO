@@ -349,7 +349,7 @@ class BaseTrainer:
 
         self._build_train_pipeline()
         self.validator = self.get_validator()
-        self.ema = ModelEMA(self.model)
+        self.ema = ModelEMA(self.model, decay=getattr(self.args, "ema_decay", 0.9999))
         self.set_class_weights()  # compute class weights after dataloader is ready
         if RANK in {-1, 0}:
             metric_keys = self.validator.metrics.keys + self.label_loss_items(prefix="val")
