@@ -1,0 +1,152 @@
+# YOLO 实验模板配置
+#
+# 用法示例：
+#   python script/train.py --config default.yaml
+#   python script/train.py --config default.yaml --set train.epochs=300 --set hyperparameters.lr0=0.005
+#   python script/val.py   --config default.yaml --model runs/experiments/yolo11n_coco8_baseline/weights/best.pt
+#
+# 设计说明：
+# 1. 该文件按“实验 / 模型 / 数据集 / 训练 / 验证 / 导出 ...”分组，便于做实验时快速阅读。
+# 2. 每个内部字段名尽量与 Ultralytics 官方参数保持一致，方便对照文档。
+# 3. script/train.py 与 script/val.py 会把这些分组自动展开成 Ultralytics 原生参数。
+
+meta:
+  config_version: 1 # 配置版本，仅用于备注，不会传给 YOLO
+  description: "YOLO 实验基础模板（可直接复制改名做不同实验）" # 配置说明，仅用于备注
+
+experiment:
+  task: detect # 任务类型：detect | segment | classify | pose | obb
+  mode: train # 仅作为记录；train.py 会强制用 train，val.py 会强制用 val
+  project: runs/experiments # 实验输出根目录，脚本会自动转为绝对路径
+  name: yolo11n_coco8_baseline # 当前实验名称，对应 project/name
+  exist_ok: false # 是否允许复用已有同名实验目录
+  verbose: true # 是否打印详细日志
+  seed: 0 # 随机种子
+  deterministic: true # 是否尽量保证可复现（通常更稳，但可能稍慢）
+
+model:
+  model: yolo11n.pt # 模型权重(.pt) 或模型结构(.yaml)
+  pretrained: true # true=使用官方预训练；false=从头训练；也可直接写成权重路径
+  freeze: null # 冻结层：null/0=不冻结；整数=冻结前 N 层；列表=指定层索引
+  compile: false # 是否启用 torch.compile；可写 false/true/"default"/"reduce-overhead" 等
+
+dataset:
+  data: coco8.yaml # 数据集配置 yaml；可写你自己的 data.yaml 路径
+  fraction: 1.0 # 使用训练集的比例，1.0 表示全量数据
+  single_cls: false # 是否把所有类别视为单类别任务
+
+train:
+  epochs: 100 # 训练轮数
+  time: null # 最大训练时长（单位：小时）；设置后会覆盖 epochs
+  patience: 100 # 早停容忍轮数
+  batch: 16 # batch size；可写整数，也可写 0.5 这种 AutoBatch 比例
+  imgsz: 640 # 输入图像尺寸；训练/验证通常写单个整数
+  save: true # 是否保存训练结果和权重
+  save_period: -1 # 每 N 轮额外保存一次 checkpoint；<1 表示关闭
+  cache: false # 是否缓存图像；可写 false/true/"ram"/"disk"
+  device: null # 训练设备；如 0 / "cpu" / "mps" / [0,1]
+  workers: 8 # dataloader worker 数量
+  optimizer: auto # 优化器：auto / SGD / Adam / AdamW / RMSProp / MuSGD ...
+  rect: false # 是否使用矩形训练批次
+  cos_lr: false # 是否使用 cosine learning rate 调度
+  close_mosaic: 10 # 最后 N 个 epoch 关闭 mosaic，0 表示始终开启
+  resume: false # 是否恢复训练；也可以填 last.pt 路径
+  amp: true # 是否启用自动混合精度 AMP
+  profile: false # 训练时是否额外 profile ONNX/TensorRT 速度
+  multi_scale: 0.0 # 多尺度训练范围；0 表示关闭
+
+segmentation:
+  overlap_mask: true # 分割任务中是否将实例 mask 合并训练（仅 segment 任务有效）
+  mask_ratio: 4 # mask 下采样比率（仅 segment 任务有效）
+
+classification:
+  dropout: 0.0 # 分类头 dropout（仅 classify 任务有效）
+
+validation:
+  val: true # 训练时是否同时跑验证
+  split: val # 验证集划分：train | val | test
+  save_json: false # 是否导出 COCO JSON 结果，便于外部评测
+  conf: null # 置信度阈值；null 时让 Ultralytics 使用模式默认值
+  iou: 0.7 # NMS / 匹配时使用的 IoU 阈值
+  max_det: 300 # 每张图最多保留多少检测框
+  half: false # 验证时是否启用 FP16
+  dnn: false # 是否使用 OpenCV DNN（主要用于 ONNX 推理/验证）
+  plots: true # 是否保存验证图表和样例图
+  end2end: null # 是否启用 end2end head；通常留空即可
+  visualize: false # 验证时可视化 TP/FP/FN 或预测特征
+
+prediction:
+  source: null # 推理源；可以是图片/文件夹/视频/摄像头/URL（train/val 脚本通常不会用到）
+  vid_stride: 1 # 视频推理时每隔多少帧处理一次
+  stream_buffer: false # 视频流是否缓存全部帧；低延迟场景一般保持 false
+  augment: false # 推理时是否开启测试时增强（TTA）
+  agnostic_nms: false # 是否进行类别无关 NMS
+  classes: null # 只保留指定类别，例如 [0, 2]
+  retina_masks: false # 是否输出高分辨率分割 mask
+  embed: null # 提取指定层的 embedding，例如 [10, 14]
+
+visualize:
+  show: false # 是否直接弹窗显示图像/视频
+  save_frames: false # 是否保存视频的逐帧结果
+  save_txt: false # 是否保存 YOLO txt 预测结果
+  save_conf: false # 保存 txt 时是否同时保存置信度
+  save_crop: false # 是否保存裁剪后的目标区域
+  show_labels: true # 可视化时是否显示类别标签
+  show_conf: true # 可视化时是否显示置信度
+  show_boxes: true # 可视化时是否绘制检测框
+  line_width: null # 绘图线宽；null 表示自动根据图像尺寸缩放
+
+export:
+  format: torchscript # 导出格式：torchscript | onnx | openvino | engine | coreml ...
+  keras: false # 导出 SavedModel 时是否启用 Keras 层
+  optimize: false # TorchScript 导出时是否进行移动端优化
+  int8: false # 是否导出为 INT8
+  dynamic: false # 是否启用动态 shape
+  simplify: true # ONNX / TensorRT 导出前是否简化图
+  opset: null # ONNX opset；留空时使用官方测试过的默认值
+  workspace: null # TensorRT workspace（GiB）
+  nms: false # 导出时是否把 NMS 融合进模型
+
+hyperparameters:
+  lr0: 0.01 # 初始学习率
+  lrf: 0.01 # 最终学习率系数，最终 lr = lr0 * lrf
+  momentum: 0.937 # SGD momentum / Adam beta1
+  weight_decay: 0.0005 # 权重衰减
+  warmup_epochs: 3.0 # warmup epoch 数，可写小数
+  warmup_momentum: 0.8 # warmup 初始 momentum
+  warmup_bias_lr: 0.1 # warmup 期间 bias 的初始学习率
+  box: 7.5 # box loss 权重
+  cls: 0.5 # classification loss 权重
+  cls_pw: 0.0 # 类别频率修正强度，0 表示关闭
+  dfl: 1.5 # distribution focal loss 权重
+  pose: 12.0 # pose loss 权重（仅 pose 任务有效）
+  kobj: 1.0 # keypoint objectness loss 权重（仅 pose 任务有效）
+  rle: 1.0 # rle loss 权重（仅 pose 任务有效）
+  angle: 1.0 # 旋转框角度损失权重（仅 obb 任务有效）
+  nbs: 64 # nominal batch size，用于 loss 归一化
+
+augmentations:
+  hsv_h: 0.015 # HSV 色调增强强度
+  hsv_s: 0.7 # HSV 饱和度增强强度
+  hsv_v: 0.4 # HSV 明度增强强度
+  degrees: 0.0 # 随机旋转角度范围（±）
+  translate: 0.1 # 平移增强比例（±）
+  scale: 0.5 # 缩放增强比例（±）
+  shear: 0.0 # 错切角度（±）
+  perspective: 0.0 # 透视增强强度
+  flipud: 0.0 # 上下翻转概率
+  fliplr: 0.5 # 左右翻转概率
+  bgr: 0.0 # RGB/BGR 通道交换概率
+  mosaic: 1.0 # Mosaic 增强概率
+  mixup: 0.0 # MixUp 增强概率
+  cutmix: 0.0 # CutMix 增强概率
+  copy_paste: 0.0 # Copy-Paste 增强概率（分割任务常用）
+  copy_paste_mode: flip # Copy-Paste 策略：flip | mixup
+  auto_augment: randaugment # 分类任务自动增强策略：randaugment | autoaugment | augmix
+  erasing: 0.4 # 分类任务随机擦除概率
+
+tracker:
+  tracker: botsort.yaml # 跟踪器配置：botsort.yaml | bytetrack.yaml
+
+raw:
+  cfg: null # 可选：再叠加一个 Ultralytics 原生 flat cfg 文件；一般不需要

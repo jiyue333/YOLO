@@ -93,6 +93,7 @@ from .head import (
     YOLOESegment26,
     v10Detect,
 )
+from .research_heads import ASFFHead, AdaptiveHead, LADH, SERDet, TPHDetect, TransformerSmallDetect
 from .transformer import (
     AIFI,
     MLP,
@@ -108,6 +109,8 @@ from .transformer import (
 
 __all__ = (
     "AIFI",
+    "ASFFHead",
+    "AdaptiveHead",
     "C1",
     "C2",
     "C2PSA",
@@ -160,6 +163,7 @@ __all__ = (
     "ImagePoolingAttn",
     "Index",
     "LRPCHead",
+    "LADH",
     "LayerNorm2d",
     "LightConv",
     "MLPBlock",
@@ -177,8 +181,11 @@ __all__ = (
     "SCDown",
     "Segment",
     "Segment26",
+    "SERDet",
     "SpatialAttention",
+    "TPHDetect",
     "TorchVision",
+    "TransformerSmallDetect",
     "TransformerBlock",
     "TransformerEncoderLayer",
     "TransformerLayer",

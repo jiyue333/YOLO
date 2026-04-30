@@ -14,7 +14,7 @@ from ultralytics.utils.ops import crop_mask, xywh2xyxy, xyxy2xywh
 from ultralytics.utils.tal import RotatedTaskAlignedAssigner, TaskAlignedAssigner, dist2bbox, dist2rbox, make_anchors
 from ultralytics.utils.torch_utils import autocast
 
-from .metrics import bbox_iou, probiou
+from .metrics import bbox_iou, box_iou, probiou
 from .tal import bbox2dist, rbox2dist
 
 
@@ -252,6 +252,246 @@ class RotatedBboxLoss(BboxLoss):
             loss_dfl = loss_dfl.sum() / target_scores_sum
 
         return loss_iou, loss_dfl
+
+
+def _reduce_loss(
+    loss: torch.Tensor,
+    weight: torch.Tensor | None = None,
+    reduction: str = "mean",
+    eps: float = 1e-7,
+) -> torch.Tensor:
+    """Reduce a loss tensor with optional element-wise weights."""
+    if reduction not in {"none", "mean", "sum"}:
+        raise ValueError(f"Invalid reduction '{reduction}'. Expected one of: 'none', 'mean', 'sum'.")
+    if loss.numel() == 0:
+        return loss if reduction == "none" else loss.new_zeros(())
+
+    if weight is not None:
+        weight = weight.to(device=loss.device, dtype=loss.dtype)
+        loss = loss * weight
+
+    if reduction == "none":
+        return loss
+    if reduction == "sum":
+        return loss.sum()
+    if weight is not None:
+        return loss.sum() / weight.sum().clamp_min(eps)
+    return loss.mean()
+
+
+def _smooth_ln(x: torch.Tensor, sigma: float = 0.5, eps: float = 1e-7) -> torch.Tensor:
+    """Compute the smooth logarithmic penalty used by Repulsion Loss."""
+    x = x.clamp(0, 1 - eps)
+    if sigma <= 0:
+        return -torch.log1p(-x)
+
+    sigma = min(sigma, 1 - eps)
+    smooth_mask = x <= sigma
+    out = x.new_empty(x.shape)
+    out[smooth_mask] = -torch.log1p(-x[smooth_mask])
+    out[~smooth_mask] = (x[~smooth_mask] - sigma) / (1 - sigma) - math.log(1 - sigma)
+    return out
+
+
+def _valid_bbox_mask(boxes: torch.Tensor, eps: float = 1e-7) -> torch.Tensor:
+    """Return a mask of valid xyxy boxes with positive width and height."""
+    widths = boxes[..., 2] - boxes[..., 0]
+    heights = boxes[..., 3] - boxes[..., 1]
+    return (widths > eps) & (heights > eps)
+
+
+def _pairwise_ioa_xyxy(box1: torch.Tensor, box2: torch.Tensor, eps: float = 1e-7) -> torch.Tensor:
+    """Compute pairwise intersection over box2 area for xyxy boxes."""
+    if box1.numel() == 0 or box2.numel() == 0:
+        return box1.new_zeros((box1.shape[0], box2.shape[0]))
+
+    (a1, a2), (b1, b2) = box1.float().unsqueeze(1).chunk(2, 2), box2.float().unsqueeze(0).chunk(2, 2)
+    inter = (torch.min(a2, b2) - torch.max(a1, b1)).clamp_(0).prod(2)
+    area2 = (b2 - b1).prod(2)
+    return inter / (area2 + eps)
+
+
+def _nwd_similarity_xyxy(
+    box1: torch.Tensor,
+    box2: torch.Tensor,
+    constant: float = 12.8,
+    eps: float = 1e-7,
+) -> torch.Tensor:
+    """Compute normalized Wasserstein similarity for axis-aligned xyxy boxes."""
+    if constant <= 0:
+        raise ValueError(f"Expected positive normalization constant, but got {constant}.")
+
+    dtype = torch.promote_types(box1.dtype, box2.dtype)
+    box1_xywh = xyxy2xywh(box1.to(dtype=dtype))
+    box2_xywh = xyxy2xywh(box2.to(dtype=dtype))
+
+    center_dist_sq = (box1_xywh[..., 0] - box2_xywh[..., 0]).pow(2) + (box1_xywh[..., 1] - box2_xywh[..., 1]).pow(2)
+    w1 = box1_xywh[..., 2].clamp_min(eps)
+    h1 = box1_xywh[..., 3].clamp_min(eps)
+    w2 = box2_xywh[..., 2].clamp_min(eps)
+    h2 = box2_xywh[..., 3].clamp_min(eps)
+    size_dist_sq = ((w1 - w2).pow(2) + (h1 - h2).pow(2)) / 12.0
+    wasserstein = torch.sqrt(center_dist_sq + size_dist_sq + eps)
+    return torch.exp(-wasserstein / constant)
+
+
+def _add_batch_dim(x: torch.Tensor, name: str, ndim: int) -> tuple[torch.Tensor, bool]:
+    """Add a batch dimension to a tensor when the caller provides a single image."""
+    if x.ndim == ndim - 1:
+        return x.unsqueeze(0), True
+    if x.ndim != ndim:
+        raise ValueError(f"Expected {name} to have {ndim - 1} or {ndim} dims, but got shape {tuple(x.shape)}.")
+    return x, False
+
+
+class RepulsionLoss(nn.Module):
+    """Repulsion loss for crowd-aware bounding box regression.
+
+    This implementation exposes the repulsion terms independently and does not attach them to any training pipeline.
+
+    References:
+        https://arxiv.org/abs/1711.07752
+    """
+
+    def __init__(self, sigma: float = 0.5, reduction: str = "mean", eps: float = 1e-7):
+        """Initialize RepulsionLoss with smoothing and reduction settings."""
+        super().__init__()
+        if not 0 <= sigma < 1:
+            raise ValueError(f"Expected sigma in [0, 1), but got {sigma}.")
+        if reduction not in {"none", "mean", "sum"}:
+            raise ValueError(f"Invalid reduction '{reduction}'. Expected one of: 'none', 'mean', 'sum'.")
+        self.sigma = sigma
+        self.reduction = reduction
+        self.eps = eps
+
+    def forward(
+        self,
+        pred_bboxes: torch.Tensor,
+        gt_bboxes: torch.Tensor,
+        matched_gt_indices: torch.Tensor,
+        fg_mask: torch.Tensor | None = None,
+    ) -> tuple[torch.Tensor, torch.Tensor]:
+        """Compute RepGT and RepBox penalties for matched xyxy boxes.
+
+        Args:
+            pred_bboxes (torch.Tensor): Predicted boxes in xyxy format with shape (N, 4) or (B, N, 4).
+            gt_bboxes (torch.Tensor): Ground-truth boxes in xyxy format with shape (M, 4) or (B, M, 4).
+            matched_gt_indices (torch.Tensor): Matched GT indices for predictions with shape (N,) or (B, N).
+            fg_mask (torch.Tensor, optional): Foreground mask for valid predictions with shape (N,) or (B, N).
+
+        Returns:
+            (tuple[torch.Tensor, torch.Tensor]): Reduced RepGT and RepBox losses.
+        """
+        pred_bboxes, pred_squeezed = _add_batch_dim(pred_bboxes, "pred_bboxes", 3)
+        gt_bboxes, gt_squeezed = _add_batch_dim(gt_bboxes, "gt_bboxes", 3)
+        matched_gt_indices, idx_squeezed = _add_batch_dim(matched_gt_indices, "matched_gt_indices", 2)
+
+        if pred_bboxes.shape[0] != gt_bboxes.shape[0] or pred_bboxes.shape[:2] != matched_gt_indices.shape:
+            raise ValueError(
+                "Expected pred_bboxes, gt_bboxes, and matched_gt_indices to share the same batch size and "
+                f"prediction count, but got shapes {tuple(pred_bboxes.shape)}, {tuple(gt_bboxes.shape)}, and "
+                f"{tuple(matched_gt_indices.shape)}."
+            )
+        if pred_bboxes.shape[-1] != 4 or gt_bboxes.shape[-1] != 4:
+            raise ValueError("RepulsionLoss expects xyxy boxes with last dimension 4.")
+
+        if fg_mask is None:
+            fg_mask = torch.ones(pred_bboxes.shape[:2], device=pred_bboxes.device, dtype=torch.bool)
+        else:
+            fg_mask, fg_squeezed = _add_batch_dim(fg_mask, "fg_mask", 2)
+            if fg_mask.shape != pred_bboxes.shape[:2]:
+                raise ValueError(
+                    f"Expected fg_mask to match prediction shape {tuple(pred_bboxes.shape[:2])}, but got "
+                    f"{tuple(fg_mask.shape)}."
+                )
+            if fg_squeezed and not pred_squeezed:
+                raise ValueError("Received unbatched fg_mask with batched pred_bboxes.")
+
+        if pred_squeezed != gt_squeezed or pred_squeezed != idx_squeezed:
+            raise ValueError("pred_bboxes, gt_bboxes, and matched_gt_indices must either all be batched or all unbatched.")
+
+        matched_gt_indices = matched_gt_indices.long().to(pred_bboxes.device)
+        fg_mask = fg_mask.to(device=pred_bboxes.device, dtype=torch.bool)
+
+        repgt_terms = []
+        repbox_terms = []
+        for pred_boxes_i, gt_boxes_i, matched_idx_i, fg_mask_i in zip(pred_bboxes, gt_bboxes, matched_gt_indices, fg_mask):
+            gt_valid = _valid_bbox_mask(gt_boxes_i, self.eps)
+            pred_valid = _valid_bbox_mask(pred_boxes_i, self.eps)
+            matched_in_range = (matched_idx_i >= 0) & (matched_idx_i < gt_boxes_i.shape[0])
+            matched_valid = torch.zeros_like(matched_in_range)
+            if matched_in_range.any():
+                matched_valid[matched_in_range] = gt_valid[matched_idx_i[matched_in_range]]
+
+            valid_pred = fg_mask_i & pred_valid & matched_in_range & matched_valid
+            if not valid_pred.any():
+                continue
+
+            pos_pred = pred_boxes_i[valid_pred]
+            pos_idx = matched_idx_i[valid_pred]
+
+            if gt_boxes_i.shape[0]:
+                ioa_matrix = _pairwise_ioa_xyxy(pos_pred, gt_boxes_i, self.eps)
+                foreign_mask = gt_valid.unsqueeze(0).expand(pos_pred.shape[0], -1).clone()
+                foreign_mask.scatter_(1, pos_idx.unsqueeze(1), False)
+                max_ioa = ioa_matrix.masked_fill(~foreign_mask, 0).amax(dim=1)
+                repgt_terms.append(_smooth_ln(max_ioa, self.sigma, self.eps))
+
+            if pos_pred.shape[0] > 1:
+                pairwise_iou = box_iou(pos_pred, pos_pred, self.eps)
+                pair_mask = torch.triu(torch.ones_like(pairwise_iou, dtype=torch.bool), diagonal=1)
+                pair_mask &= pos_idx.unsqueeze(0) != pos_idx.unsqueeze(1)
+                if pair_mask.any():
+                    repbox_terms.append(_smooth_ln(pairwise_iou[pair_mask], self.sigma, self.eps))
+
+        repgt_loss = _reduce_loss(
+            torch.cat(repgt_terms, dim=0) if repgt_terms else pred_bboxes.new_zeros(0), reduction=self.reduction
+        )
+        repbox_loss = _reduce_loss(
+            torch.cat(repbox_terms, dim=0) if repbox_terms else pred_bboxes.new_zeros(0), reduction=self.reduction
+        )
+        return repgt_loss, repbox_loss
+
+
+class NWDLoss(nn.Module):
+    """Normalized Wasserstein Distance loss for axis-aligned bounding boxes.
+
+    References:
+        https://arxiv.org/abs/2110.13389
+    """
+
+    def __init__(self, constant: float = 12.8, reduction: str = "mean", eps: float = 1e-7):
+        """Initialize NWDLoss with a normalization constant and reduction method."""
+        super().__init__()
+        if constant <= 0:
+            raise ValueError(f"Expected constant to be positive, but got {constant}.")
+        if reduction not in {"none", "mean", "sum"}:
+            raise ValueError(f"Invalid reduction '{reduction}'. Expected one of: 'none', 'mean', 'sum'.")
+        self.constant = constant
+        self.reduction = reduction
+        self.eps = eps
+
+    def forward(
+        self,
+        pred_bboxes: torch.Tensor,
+        target_bboxes: torch.Tensor,
+        weight: torch.Tensor | None = None,
+    ) -> torch.Tensor:
+        """Compute NWD loss for xyxy boxes.
+
+        Args:
+            pred_bboxes (torch.Tensor): Predicted boxes in xyxy format.
+            target_bboxes (torch.Tensor): Target boxes in xyxy format.
+            weight (torch.Tensor, optional): Element-wise weights broadcastable to the computed loss.
+
+        Returns:
+            (torch.Tensor): Reduced NWD loss tensor.
+        """
+        if pred_bboxes.shape[-1] != 4 or target_bboxes.shape[-1] != 4:
+            raise ValueError("NWDLoss expects xyxy boxes with last dimension 4.")
+
+        loss = 1.0 - _nwd_similarity_xyxy(pred_bboxes, target_bboxes, self.constant, self.eps)
+        return _reduce_loss(loss, weight=weight, reduction=self.reduction, eps=self.eps)
 
 
 class MultiChannelDiceLoss(nn.Module):

@@ -13,6 +13,8 @@ import torch.nn as nn
 from ultralytics.nn.autobackend import check_class_names
 from ultralytics.nn.modules import (
     AIFI,
+    ASFFHead,
+    AdaptiveHead,
     C1,
     C2,
     C2PSA,
@@ -54,6 +56,7 @@ from ultralytics.nn.modules import (
     HGStem,
     ImagePoolingAttn,
     Index,
+    LADH,
     LRPCHead,
     Pose,
     Pose26,
@@ -66,7 +69,10 @@ from ultralytics.nn.modules import (
     SCDown,
     Segment,
     Segment26,
+    SERDet,
+    TPHDetect,
     TorchVision,
+    TransformerSmallDetect,
     WorldDetect,
     YOLOEDetect,
     YOLOESegment,
@@ -1691,12 +1697,35 @@ def parse_model(d, ch, verbose=True):
                 Pose26,
                 OBB,
                 OBB26,
+                ASFFHead,
+                AdaptiveHead,
+                LADH,
+                SERDet,
+                TPHDetect,
+                TransformerSmallDetect,
             }
         ):
             args.extend([reg_max, end2end, [ch[x] for x in f]])
             if m is Segment or m is YOLOESegment or m is Segment26 or m is YOLOESegment26:
                 args[2] = make_divisible(min(args[2], max_channels) * width, 8)
-            if m in {Detect, YOLOEDetect, Segment, Segment26, YOLOESegment, YOLOESegment26, Pose, Pose26, OBB, OBB26}:
+            if m in {
+                Detect,
+                YOLOEDetect,
+                Segment,
+                Segment26,
+                YOLOESegment,
+                YOLOESegment26,
+                Pose,
+                Pose26,
+                OBB,
+                OBB26,
+                ASFFHead,
+                AdaptiveHead,
+                LADH,
+                SERDet,
+                TPHDetect,
+                TransformerSmallDetect,
+            }:
                 m.legacy = legacy
         elif m is v10Detect:
             args.append([ch[x] for x in f])
@@ -1784,7 +1813,7 @@ def guess_model_task(model):
         m = cfg["head"][-1][-2].lower()  # output module name
         if m in {"classify", "classifier", "cls", "fc"}:
             return "classify"
-        if "detect" in m:
+        if m in {"asffhead", "adaptivehead", "ladh", "serdet", "tphdetect", "transformersmalldetect"} or "detect" in m:
             return "detect"
         if "segment" in m:
             return "segment"
