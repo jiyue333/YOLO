@@ -98,22 +98,23 @@ class DetectionValidator(BaseValidator):
         self.metrics.names = model.names
         self.metrics.clear_stats()
         self.metrics.clear_image_metrics()
+        self.e2e_metrics = DetMetrics() if self.end2end else None
+        if self.e2e_metrics is not None:
+            self.e2e_metrics.names = model.names
+            self.e2e_metrics.clear_stats()
+            self.e2e_metrics.clear_image_metrics()
+        model_layers = getattr(getattr(model, "model", None), "model", getattr(model, "model", None))
+        self.detect_head = model_layers[-1] if hasattr(model_layers, "__getitem__") else None
+        self._last_e2e_preds = None
+        self._has_e2e_results = False
         self.confusion_matrix = ConfusionMatrix(names=model.names, save_matches=self.args.plots and self.args.visualize)
 
     def get_desc(self) -> str:
         """Return a formatted string summarizing class metrics of YOLO model."""
         return ("%22s" + "%11s" * 6) % ("Class", "Images", "Instances", "Box(P", "R", "mAP50", "mAP50-95)")
 
-    def postprocess(self, preds: torch.Tensor) -> list[dict[str, torch.Tensor]]:
-        """Apply Non-maximum suppression to prediction outputs.
-
-        Args:
-            preds (torch.Tensor): Raw predictions from the model.
-
-        Returns:
-            (list[dict[str, torch.Tensor]]): Processed predictions after NMS, where each dict contains 'bboxes', 'conf',
-                'cls', and 'extra' tensors.
-        """
+    def _nms_outputs(self, preds: torch.Tensor, end2end: bool) -> list[dict[str, torch.Tensor]]:
+        """Apply NMS and convert tensors to validator dictionaries."""
         outputs = nms.non_max_suppression(
             preds,
             self.args.conf,
@@ -122,10 +123,39 @@ class DetectionValidator(BaseValidator):
             multi_label=True,
             agnostic=self.args.single_cls or self.args.agnostic_nms,
             max_det=self.args.max_det,
-            end2end=self.end2end,
+            end2end=end2end,
+            adaptive_nms=getattr(self.args, "adaptive_nms", False) and not end2end,
+            adaptive_nms_max_iou=getattr(self.args, "adaptive_nms_max_iou", 0.75),
+            adaptive_nms_density_threshold=getattr(self.args, "adaptive_nms_density_threshold", 3),
             rotated=self.args.task == "obb",
         )
         return [{"bboxes": x[:, :4], "conf": x[:, 4], "cls": x[:, 5], "extra": x[:, 6:]} for x in outputs]
+
+    def postprocess(self, preds: torch.Tensor) -> list[dict[str, torch.Tensor]]:
+        """Apply post-processing to prediction outputs.
+
+        Args:
+            preds (torch.Tensor): Raw predictions from the model.
+
+        Returns:
+            (list[dict[str, torch.Tensor]]): Processed predictions after NMS, where each dict contains 'bboxes', 'conf',
+                'cls', and 'extra' tensors.
+        """
+        self._last_e2e_preds = None
+        # During end2end validation, report one-to-many+NMS as the primary metric and keep one-to-one/e2e as
+        # secondary telemetry. References: Ultralytics DetectionValidator/trainer.py and YOLOv10 e2e heads.
+        if self.end2end and isinstance(preds, (list, tuple)) and len(preds) == 2 and isinstance(preds[1], dict):
+            raw_preds = preds[1]
+            one2many = raw_preds.get("one2many")
+            if (
+                self.detect_head is not None
+                and hasattr(self.detect_head, "_inference")
+                and isinstance(one2many, dict)
+                and "feats" in one2many
+            ):
+                self._last_e2e_preds = self._nms_outputs(preds[0], end2end=True)
+                return self._nms_outputs(self.detect_head._inference(one2many), end2end=False)
+        return self._nms_outputs(preds, end2end=self.end2end)
 
     def _prepare_batch(self, si: int, batch: dict[str, Any]) -> dict[str, Any]:
         """Prepare a batch of images and annotations for validation.
@@ -167,21 +197,25 @@ class DetectionValidator(BaseValidator):
             pred["cls"] *= 0
         return pred
 
-    def update_metrics(self, preds: list[dict[str, torch.Tensor]], batch: dict[str, Any]) -> None:
-        """Update metrics with new predictions and ground truth.
-
-        Args:
-            preds (list[dict[str, torch.Tensor]]): List of predictions from the model.
-            batch (dict[str, Any]): Batch data containing ground truth.
-        """
+    def _update_metric_set(
+        self,
+        preds: list[dict[str, torch.Tensor]],
+        batch: dict[str, Any],
+        metrics: DetMetrics,
+        confusion_matrix: ConfusionMatrix | None = None,
+        update_seen: bool = True,
+        save_outputs: bool = True,
+    ) -> None:
+        """Update one metric accumulator with new predictions and ground truth."""
         for si, pred in enumerate(preds):
-            self.seen += 1
+            if update_seen:
+                self.seen += 1
             pbatch = self._prepare_batch(si, batch)
             predn = self._prepare_pred(pred)
 
             cls = pbatch["cls"].cpu().numpy()
             no_pred = predn["cls"].shape[0] == 0
-            self.metrics.update_stats(
+            metrics.update_stats(
                 {
                     **self._process_batch(predn, pbatch),
                     "target_cls": cls,
@@ -191,16 +225,14 @@ class DetectionValidator(BaseValidator):
                     "im_name": Path(pbatch["im_file"]).name,
                 }
             )
-            # Evaluate
-            if self.args.plots:
-                self.confusion_matrix.process_batch(predn, pbatch, conf=self.args.conf)
+            if confusion_matrix is not None and self.args.plots:
+                confusion_matrix.process_batch(predn, pbatch, conf=self.args.conf)
                 if self.args.visualize:
-                    self.confusion_matrix.plot_matches(batch["img"][si], pbatch["im_file"], self.save_dir)
+                    confusion_matrix.plot_matches(batch["img"][si], pbatch["im_file"], self.save_dir)
 
-            if no_pred:
+            if no_pred or not save_outputs:
                 continue
 
-            # Save
             if self.args.save_json or self.args.save_txt:
                 predn_scaled = self.scale_preds(predn, pbatch)
             if self.args.save_json:
@@ -213,6 +245,23 @@ class DetectionValidator(BaseValidator):
                     self.save_dir / "labels" / f"{Path(pbatch['im_file']).stem}.txt",
                 )
 
+    def update_metrics(self, preds: list[dict[str, torch.Tensor]], batch: dict[str, Any]) -> None:
+        """Update metrics with new predictions and ground truth.
+
+        Args:
+            preds (list[dict[str, torch.Tensor]]): List of predictions from the model.
+            batch (dict[str, Any]): Batch data containing ground truth.
+        """
+        self._update_metric_set(preds, batch, self.metrics, self.confusion_matrix)
+        if self.e2e_metrics is not None and self._last_e2e_preds is not None:
+            self._update_metric_set(
+                self._last_e2e_preds,
+                batch,
+                self.e2e_metrics,
+                update_seen=False,
+                save_outputs=False,
+            )
+
     def finalize_metrics(self) -> None:
         """Set final values for metrics speed and confusion matrix."""
         if self.args.plots:
@@ -221,6 +270,9 @@ class DetectionValidator(BaseValidator):
         self.metrics.speed = self.speed
         self.metrics.confusion_matrix = self.confusion_matrix
         self.metrics.save_dir = self.save_dir
+        if self.e2e_metrics is not None:
+            self.e2e_metrics.speed = self.speed
+            self.e2e_metrics.save_dir = self.save_dir
 
     def _gather_image_metrics(self, metric) -> None:
         """Gather per-image metrics from all GPUs for a single metric object."""
@@ -251,11 +303,24 @@ class DetectionValidator(BaseValidator):
                 self.jdict.extend(jdict)
             self.metrics.stats = merged_stats
             self._gather_image_metrics(self.metrics.box)
+            if self.e2e_metrics is not None:
+                gathered_e2e_stats = [None] * dist.get_world_size()
+                dist.gather_object(self.e2e_metrics.stats, gathered_e2e_stats, dst=0)
+                merged_e2e_stats = {key: [] for key in self.e2e_metrics.stats.keys()}
+                for stats_dict in gathered_e2e_stats:
+                    for key in merged_e2e_stats:
+                        merged_e2e_stats[key].extend(stats_dict[key])
+                self.e2e_metrics.stats = merged_e2e_stats
+                self._gather_image_metrics(self.e2e_metrics.box)
             self.seen = len(self.dataloader.dataset)  # total image count from dataset
         elif RANK > 0:
             dist.gather_object(self.metrics.stats, None, dst=0)
             dist.gather_object(self.jdict, None, dst=0)
             self._gather_image_metrics(self.metrics.box)
+            if self.e2e_metrics is not None:
+                dist.gather_object(self.e2e_metrics.stats, None, dst=0)
+                self._gather_image_metrics(self.e2e_metrics.box)
+                self.e2e_metrics.clear_stats()
             self.jdict = []
             self.metrics.clear_stats()
 
@@ -266,8 +331,19 @@ class DetectionValidator(BaseValidator):
             (dict[str, Any]): Dictionary containing metrics results.
         """
         self.metrics.process(save_dir=self.save_dir, plot=self.args.plots, on_plot=self.on_plot)
+        stats = self.metrics.results_dict
+        has_e2e_stats = self.e2e_metrics is not None and any(len(v) for v in self.e2e_metrics.stats.values())
+        self._has_e2e_results = has_e2e_stats
+        if has_e2e_stats:
+            self.e2e_metrics.process(save_dir=self.save_dir, plot=False, on_plot=self.on_plot)
+            e2e_stats = self.e2e_metrics.results_dict
+            stats.update(
+                {f"metrics/e2e_{k.removeprefix('metrics/')}": v for k, v in e2e_stats.items() if k != "fitness"}
+            )
+            stats["fitness_e2e"] = e2e_stats["fitness"]
+            self.e2e_metrics.clear_stats()
         self.metrics.clear_stats()
-        return self.metrics.results_dict
+        return stats
 
     def print_results(self) -> None:
         """Print training/validation set metrics per class."""
@@ -277,6 +353,11 @@ class DetectionValidator(BaseValidator):
             LOGGER.warning(f"no labels found in {self.args.task} set, cannot compute metrics without labels")
 
         # Print results per class
+        if self.e2e_metrics is not None and self._has_e2e_results:
+            e2e_results = self.e2e_metrics.mean_results()
+            LOGGER.info(
+                pf % ("one-to-one/e2e", self.seen, self.e2e_metrics.nt_per_class.sum(), *e2e_results)
+            )
         if self.args.verbose and not self.training and self.nc > 1 and len(self.metrics.stats):
             for i, c in enumerate(self.metrics.ap_class_index):
                 LOGGER.info(

@@ -53,7 +53,7 @@ split: val # (str) dataset split to evaluate: 'val', 'test' or 'train'
 save_json: False # (bool) save results to COCO JSON for external evaluation
 conf: # (float, optional) confidence threshold; defaults: predict=0.25, val=0.001
 iou: 0.7 # (float) IoU threshold used for NMS
-max_det: 300 # (int) maximum number of detections per image
+max_det: 3000 # (int) CrowdHuman/SAHI merge-friendly maximum detections per image
 half: False # (bool) use half precision (FP16) if supported
 dnn: False # (bool) use OpenCV DNN for ONNX inference
 plots: True # (bool) save plots and images during train/val
