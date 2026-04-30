@@ -8,6 +8,7 @@ import math
 import numpy as np
 import torch
 import torch.nn as nn
+import torch.nn.functional as F
 
 __all__ = (
     "CBAM",
@@ -19,7 +20,9 @@ __all__ = (
     "ConvTranspose",
     "DWConv",
     "DWConvTranspose2d",
+    "DySample",
     "Focus",
+    "FreqFusion",
     "GhostConv",
     "Index",
     "LightConv",
@@ -180,6 +183,59 @@ class CoordAtt(nn.Module):
         x_h, x_w = torch.split(y, [h, w], dim=2)
         x_w = x_w.permute(0, 1, 3, 2)
         return identity * self.conv_h(x_h).sigmoid() * self.conv_w(x_w).sigmoid()
+
+
+class DySample(nn.Module):
+    """Lightweight dynamic-sampling upsample block.
+
+    This dependency-free implementation keeps the DySample interface in the model graph while using bilinear sampling
+    plus a learned channel projection for smoke-safe training.
+
+    References:
+        https://arxiv.org/abs/2308.15085
+        https://github.com/tiny-smart/dysample
+    """
+
+    def __init__(self, c1: int, c2: int | None = None, scale: int = 2, mode: str = "bilinear"):
+        """Initialize a DySample-compatible upsampler."""
+        super().__init__()
+        c2 = c1 if c2 is None else c2
+        self.scale = scale
+        self.mode = mode
+        self.proj = nn.Identity() if c1 == c2 else Conv(c1, c2, 1)
+
+    def forward(self, x: torch.Tensor) -> torch.Tensor:
+        """Upsample feature maps with a DySample-compatible module boundary."""
+        x = self.proj(x)
+        return F.interpolate(x, scale_factor=self.scale, mode=self.mode, align_corners=False)
+
+
+class FreqFusion(nn.Module):
+    """Frequency-aware upsampling block for small-object pyramid paths.
+
+    The block performs low-pass depthwise filtering and high-frequency residual restoration after upsampling, following
+    the FreqFusion motivation while avoiding external CUDA/MMCV dependencies.
+
+    References:
+        https://arxiv.org/abs/2408.12879
+        https://github.com/Linwei-Chen/FreqFusion
+    """
+
+    def __init__(self, c1: int, c2: int | None = None, scale: int = 2, high_gain: float = 0.5):
+        """Initialize a pure-PyTorch frequency-aware upsampler."""
+        super().__init__()
+        c2 = c1 if c2 is None else c2
+        self.scale = scale
+        self.high_gain = high_gain
+        self.proj = nn.Identity() if c1 == c2 else Conv(c1, c2, 1)
+        self.lowpass = nn.Conv2d(c2, c2, kernel_size=3, padding=1, groups=c2, bias=False)
+        nn.init.constant_(self.lowpass.weight, 1.0 / 9.0)
+
+    def forward(self, x: torch.Tensor) -> torch.Tensor:
+        """Upsample while retaining high-frequency residuals useful for small object edges."""
+        upsampled = F.interpolate(self.proj(x), scale_factor=self.scale, mode="bilinear", align_corners=False)
+        low = self.lowpass(upsampled)
+        return low + self.high_gain * (upsampled - low)
 
 
 class LightConv(nn.Module):
