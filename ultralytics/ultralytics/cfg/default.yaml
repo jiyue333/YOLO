@@ -23,13 +23,13 @@ project: # (str, optional) project name for results root
 name: # (str, optional) experiment name; results in 'project/name'
 exist_ok: False # (bool) overwrite existing 'project/name' if True
 pretrained: True # (bool | str) use pretrained weights (bool) or load weights from path (str)
-optimizer: auto # (str) optimizer: SGD, MuSGD, Adam, Adamax, AdamW, NAdam, RAdam, RMSProp, or auto
+optimizer: MuSGD # (str) YOLO26/Muon recipe optimizer; see https://github.com/KellerJordan/Muon
 verbose: True # (bool) print verbose logs during training/val
 seed: 0 # (int) random seed for reproducibility
 deterministic: True # (bool) enable deterministic ops; reproducible but may be slower
 single_cls: False # (bool) treat all classes as a single class
 rect: False # (bool) rectangular batches for train; rectangular batching for val when mode='val'
-cos_lr: False # (bool) cosine learning rate scheduler
+cos_lr: True # (bool) SGDR/PyTorch cosine learning rate scheduler, https://arxiv.org/abs/1608.03983
 close_mosaic: 10 # (int) disable mosaic augmentation for final N epochs (0 to keep enabled)
 resume: False # (bool) resume training from last checkpoint in the run dir
 amp: True # (bool) Automatic Mixed Precision (AMP) training; True runs AMP capability check
@@ -96,7 +96,7 @@ lr0: 0.01 # (float) initial learning rate (SGD=1e-2, Adam/AdamW=1e-3)
 lrf: 0.01 # (float) final LR fraction; final LR = lr0 * lrf
 momentum: 0.937 # (float) SGD momentum or Adam beta1
 weight_decay: 0.0005 # (float) weight decay (L2 regularization)
-warmup_epochs: 3.0 # (float) warmup epochs (fractions allowed)
+warmup_epochs: 6.0 # (float) long warmup epochs for the crowd recipe
 warmup_momentum: 0.8 # (float) initial momentum during warmup
 warmup_bias_lr: 0.1 # (float) bias learning rate during warmup
 box: 7.5 # (float) box loss gain

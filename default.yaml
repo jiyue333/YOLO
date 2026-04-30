@@ -19,7 +19,7 @@ experiment:
   task: detect # 任务类型：detect | segment | classify | pose | obb
   mode: train # 仅作为记录；train.py 会强制用 train，val.py 会强制用 val
   project: runs/smoke # 实验输出根目录，脚本会自动转为绝对路径
-  name: tal_topk_cls_balance # 当前实验名称，对应 project/name
+  name: optimizer_cosine_warmup # 当前实验名称，对应 project/name
   exist_ok: true # 是否允许复用已有同名实验目录
   verbose: true # 是否打印详细日志
   seed: 0 # 随机种子
@@ -47,9 +47,9 @@ train:
   cache: false # 是否缓存图像；可写 false/true/"ram"/"disk"
   device: cpu # 训练设备；如 0 / "cpu" / "mps" / [0,1]
   workers: 0 # smoke 避免多进程 dataloader 干扰
-  optimizer: MuSGD # 对齐官方 YOLO26 配方优化器
+  optimizer: MuSGD # 对齐官方 YOLO26/Muon 配方优化器；参考 https://github.com/KellerJordan/Muon
   rect: false # 是否使用矩形训练批次
-  cos_lr: false # 是否使用 cosine learning rate 调度
+  cos_lr: true # SGDR/PyTorch Cosine LR；参考 https://arxiv.org/abs/1608.03983
   close_mosaic: 15 # YOLOX close_mosaic 策略：最后 10-15 epoch 关闭强增强
   resume: false # 是否恢复训练；也可以填 last.pt 路径
   amp: true # 是否启用自动混合精度 AMP
@@ -106,7 +106,7 @@ hyperparameters:
   lrf: 0.0495 # 官方 YOLO26n 配方最终学习率系数
   momentum: 0.947 # 官方 YOLO26n 配方 momentum
   weight_decay: 0.00064 # 官方 YOLO26n 配方权重衰减
-  warmup_epochs: 0.98 # 官方 YOLO26n 配方 warmup epoch 数
+  warmup_epochs: 6 # 长 warmup；参考 SGDR 与 PyTorch CosineAnnealingLR
   warmup_momentum: 0.8 # warmup 初始 momentum
   warmup_bias_lr: 0.1 # warmup 期间 bias 的初始学习率
   box: 5.63 # 官方 YOLO26n 配方 box loss gain
