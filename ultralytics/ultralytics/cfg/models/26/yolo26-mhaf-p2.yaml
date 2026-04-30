@@ -1,0 +1,59 @@
+# Ultralytics YOLO26 + MHAF-style P2-P5 object detection model.
+# References:
+# - MHAF-YOLO RepHMS/GHFKS/MAFPN: https://arxiv.org/abs/2502.04656, https://github.com/yang-0201/MHAF-YOLO
+# - ShiftwiseConv inside RepHMS: https://arxiv.org/abs/2401.12736, https://github.com/lidc54/shift-wiseConv
+# - YOLO26 base/C2PSA: https://arxiv.org/abs/2509.25164, https://github.com/ultralytics/ultralytics
+
+nc: 80
+end2end: True
+reg_max: 1
+scales:
+  n: [0.50, 0.25, 1024]
+  s: [0.50, 0.50, 1024]
+  m: [0.50, 1.00, 512]
+  l: [1.00, 1.00, 512]
+  x: [1.00, 1.50, 512]
+
+backbone:
+  # [from, repeats, module, args]
+  - [-1, 1, Conv, [64, 3, 2]] # 0-P1/2
+  - [-1, 1, Conv, [128, 3, 2]] # 1-P2/4
+  - [-1, 2, RepHMS, [256, 5, False]] # 2 shallow GHFKS 5x5
+  - [-1, 1, Conv, [256, 3, 2]] # 3-P3/8
+  - [-1, 2, RepHMS, [512, 7, False]] # 4 mid GHFKS 7x7
+  - [-1, 1, Conv, [512, 3, 2]] # 5-P4/16
+  - [-1, 2, RepHMS, [512, 7, True]] # 6 mid GHFKS 7x7
+  - [-1, 1, Conv, [1024, 3, 2]] # 7-P5/32
+  - [-1, 2, RepHMS, [1024, 9, True]] # 8 deep GHFKS 9x9
+  - [-1, 1, SPPF, [1024, 5, 3, True]] # 9
+  - [-1, 4, C2PSA, [1024]] # 10 keep YOLO26 C2PSA; n scale makes nano use 2 PSA blocks
+
+head:
+  # MAFPN-style assisted neck: AAF for deeper fusion, SAF for shallow small-object fusion.
+  - [-1, 1, DySample, [1024, 2]] # 11 P5->P4 lightweight upsample
+  - [[-1, 6], 1, Concat, [1]]
+  - [-1, 2, AAF, [512, 7, True]] # 13 AAF(P4)
+
+  - [-1, 1, FreqFusion, [512, 2]] # 14 P4->P3 frequency-aware upsample
+  - [[-1, 4], 1, Concat, [1]]
+  - [-1, 2, SAF, [256, 5, True]] # 16 SAF(P3)
+
+  - [-1, 1, FreqFusion, [256, 2]] # 17 P3->P2 frequency-aware upsample
+  - [[-1, 2], 1, Concat, [1]]
+  - [-1, 2, SAF, [128, 5, True]] # 19 SAF(P2)
+  - [-1, 1, CoordAtt, [128]] # 20 P2 CA
+
+  - [-1, 1, Conv, [128, 3, 2]]
+  - [[-1, 16], 1, Concat, [1]]
+  - [-1, 2, SAF, [256, 5, True]] # 23 SAF(P3)
+  - [-1, 1, CoordAtt, [256]] # 24 P3 CA
+
+  - [-1, 1, Conv, [256, 3, 2]]
+  - [[-1, 13], 1, Concat, [1]]
+  - [-1, 2, AAF, [512, 7, True]] # 27 AAF(P4)
+
+  - [-1, 1, Conv, [512, 3, 2]]
+  - [[-1, 10], 1, Concat, [1]]
+  - [-1, 1, AAF, [1024, 9, True]] # 30 AAF(P5)
+
+  - [[20, 24, 27, 30], 1, Detect, [nc]] # Detect(P2/4, P3/8, P4/16, P5/32)

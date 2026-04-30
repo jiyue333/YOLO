@@ -47,9 +47,13 @@ __all__ = (
     "ImagePoolingAttn",
     "Proto",
     "RepC3",
+    "RepHMS",
     "RepNCSPELAN4",
     "RepVGGDW",
     "ResNetLayer",
+    "ShiftwiseConv",
+    "SAF",
+    "AAF",
     "SCDown",
     "TorchVision",
 )
@@ -77,6 +81,67 @@ class DFL(nn.Module):
         """Apply the DFL module to input tensor and return transformed output."""
         b, _, a = x.shape  # batch, channels, anchors
         return self.conv(x.view(b, 4, self.c1, a).transpose(2, 1).softmax(1)).view(b, 4, a)
+
+
+class ShiftwiseConv(nn.Module):
+    """Shiftwise convolution used inside RepHMS blocks.
+
+    References:
+        https://arxiv.org/abs/2401.12736
+        https://github.com/lidc54/shift-wiseConv
+    """
+
+    def __init__(self, c1: int, c2: int, k: int = 5, s: int = 1, act: bool = True):
+        """Initialize a pure-PyTorch shiftwise large-kernel approximation."""
+        super().__init__()
+        p = autopad(k)
+        self.dw = nn.Conv2d(c1, c1, k, s, p, groups=c1, bias=False)
+        self.h = nn.Conv2d(c1, c1, (1, k), 1, (0, p), groups=c1, bias=False)
+        self.v = nn.Conv2d(c1, c1, (k, 1), 1, (p, 0), groups=c1, bias=False)
+        self.pw = Conv(c1, c2, 1, act=act)
+
+    def forward(self, x: torch.Tensor) -> torch.Tensor:
+        """Apply large-kernel and shifted axial depthwise branches."""
+        return self.pw(self.dw(x) + self.h(x) + self.v(x))
+
+
+class RepHMS(nn.Module):
+    """Reparameterized Heterogeneous Multi-Scale block with ShiftwiseConv kernels.
+
+    References:
+        https://arxiv.org/abs/2502.04656
+        https://github.com/yang-0201/MHAF-YOLO
+    """
+
+    def __init__(self, c1: int, c2: int, n: int = 1, k: int = 5, shortcut: bool = True):
+        """Initialize RepHMS with a stage-specific GHFKS kernel size."""
+        super().__init__()
+        c_ = max(c2 // 2, 1)
+        self.cv1 = Conv(c1, c_, 1)
+        self.blocks = nn.Sequential(*(ShiftwiseConv(c_, c_, k=k) for _ in range(n)))
+        self.cv2 = Conv(c_, c2, 1)
+        self.add = shortcut and c1 == c2
+
+    def forward(self, x: torch.Tensor) -> torch.Tensor:
+        """Run the heterogeneous multi-scale block."""
+        y = self.cv2(self.blocks(self.cv1(x)))
+        return x + y if self.add else y
+
+
+class SAF(RepHMS):
+    """Shallow Assisted Fusion block for MAFPN shallow small-object paths."""
+
+    def __init__(self, c1: int, c2: int, n: int = 1, k: int = 5, shortcut: bool = True):
+        """Initialize SAF from the MHAF-YOLO MAFPN design."""
+        super().__init__(c1, c2, n=n, k=k, shortcut=shortcut)
+
+
+class AAF(RepHMS):
+    """Advanced Assisted Fusion block for MAFPN deeper neck paths."""
+
+    def __init__(self, c1: int, c2: int, n: int = 1, k: int = 7, shortcut: bool = True):
+        """Initialize AAF from the MHAF-YOLO MAFPN design."""
+        super().__init__(c1, c2, n=n, k=k, shortcut=shortcut)
         # return self.conv(x.view(b, self.c1, 4, a).softmax(1)).view(b, 4, a)
 
 
