@@ -109,10 +109,93 @@ class DFLoss(nn.Module):
 class BboxLoss(nn.Module):
     """Criterion class for computing training losses for bounding boxes."""
 
-    def __init__(self, reg_max: int = 16):
-        """Initialize the BboxLoss module with regularization maximum and DFL settings."""
+    def __init__(self, reg_max: int = 16, hyp: Any | None = None):
+        """Initialize the BboxLoss module with WIoU-v3, NWD, RepGT and DFL settings."""
         super().__init__()
         self.dfl_loss = DFLoss(reg_max) if reg_max > 1 else None
+        self.wiou_alpha = float(getattr(hyp, "wiou_alpha", 1.9))
+        self.wiou_delta = float(getattr(hyp, "wiou_delta", 3.0))
+        self.wiou_momentum = float(getattr(hyp, "wiou_momentum", 0.01))
+        self.nwd_weight = float(getattr(hyp, "nwd_weight", 0.0))
+        self.nwd_small_area = float(getattr(hyp, "nwd_small_area", 32.0 * 32.0))
+        self.nwd_constant = float(getattr(hyp, "nwd_constant", 12.8))
+        self.repgt_weight = float(getattr(hyp, "repgt_weight", 0.0))
+        self.repulsion_sigma = float(getattr(hyp, "repulsion_sigma", 0.5))
+        self.register_buffer("wiou_mean", torch.tensor(1.0))
+
+    def wiou_v3_loss(self, pred_bboxes: torch.Tensor, target_bboxes: torch.Tensor) -> tuple[torch.Tensor, torch.Tensor]:
+        """Calculate Wise-IoU v3 loss and raw IoU for aligned xyxy boxes."""
+        iou = bbox_iou(pred_bboxes, target_bboxes, xywh=False, CIoU=False).squeeze(-1).clamp_(0.0, 1.0)
+        loss_iou = 1.0 - iou
+
+        if self.training and loss_iou.numel():
+            self.wiou_mean.mul_(1.0 - self.wiou_momentum).add_(loss_iou.detach().mean() * self.wiou_momentum)
+
+        pred_ctr = (pred_bboxes[:, :2] + pred_bboxes[:, 2:]) * 0.5
+        target_ctr = (target_bboxes[:, :2] + target_bboxes[:, 2:]) * 0.5
+        rho2 = (pred_ctr - target_ctr).pow(2).sum(1)
+        c_xy1 = torch.minimum(pred_bboxes[:, :2], target_bboxes[:, :2])
+        c_xy2 = torch.maximum(pred_bboxes[:, 2:], target_bboxes[:, 2:])
+        c2 = (c_xy2 - c_xy1).pow(2).sum(1).clamp_(1e-7)
+        distance_gain = torch.exp((rho2 / c2).detach().clamp(max=10.0))
+
+        beta = (loss_iou.detach() / self.wiou_mean.clamp(min=1e-7)).clamp(min=1e-7, max=10.0)
+        focus = beta / (self.wiou_delta * torch.pow(beta.new_tensor(self.wiou_alpha), beta - self.wiou_delta))
+        return (loss_iou * distance_gain * focus).unsqueeze(-1), iou
+
+    def nwd_loss(self, pred_bboxes: torch.Tensor, target_bboxes: torch.Tensor) -> torch.Tensor:
+        """Calculate normalized Wasserstein distance loss for aligned xyxy boxes."""
+        pred_xywh = xyxy2xywh(pred_bboxes)
+        target_xywh = xyxy2xywh(target_bboxes)
+        center = (pred_xywh[:, :2] - target_xywh[:, :2]).pow(2).sum(1)
+        wh = (pred_xywh[:, 2:] - target_xywh[:, 2:]).pow(2).sum(1) / 4.0
+        wasserstein = torch.sqrt((center + wh).clamp_(0.0) + 1e-7)
+        nwd = torch.exp(-wasserstein / self.nwd_constant)
+        return (1.0 - nwd).unsqueeze(-1)
+
+    def repgt_loss(
+        self,
+        pred_bboxes: torch.Tensor,
+        all_gt_bboxes: torch.Tensor | None,
+        target_gt_idx: torch.Tensor | None,
+        fg_mask: torch.Tensor,
+        mask_gt: torch.Tensor | None,
+        weight: torch.Tensor,
+        target_scores_sum: torch.Tensor,
+    ) -> torch.Tensor:
+        """Calculate RepGT repulsion loss against neighboring non-assigned ground-truth boxes."""
+        if self.repgt_weight <= 0 or all_gt_bboxes is None or target_gt_idx is None or mask_gt is None:
+            return pred_bboxes.new_zeros(())
+
+        rep_loss = pred_bboxes.new_zeros(())
+        for b in range(pred_bboxes.shape[0]):
+            fg_b = fg_mask[b]
+            if not fg_b.any():
+                continue
+            valid_gt = mask_gt[b].squeeze(-1).bool()
+            gt = all_gt_bboxes[b, valid_gt]
+            if gt.shape[0] < 2:
+                continue
+
+            pred = pred_bboxes[b, fg_b]
+            assigned = target_gt_idx[b, fg_b]
+            gt_area = ((gt[:, 2] - gt[:, 0]).clamp_(0) * (gt[:, 3] - gt[:, 1]).clamp_(0)).clamp_(1e-7)
+            inter_x1 = torch.maximum(pred[:, None, 0], gt[None, :, 0])
+            inter_y1 = torch.maximum(pred[:, None, 1], gt[None, :, 1])
+            inter_x2 = torch.minimum(pred[:, None, 2], gt[None, :, 2])
+            inter_y2 = torch.minimum(pred[:, None, 3], gt[None, :, 3])
+            inter = (inter_x2 - inter_x1).clamp_(0) * (inter_y2 - inter_y1).clamp_(0)
+            iog = inter / gt_area[None]
+            iog.scatter_(1, assigned.clamp(max=gt.shape[0] - 1).view(-1, 1), 0.0)
+            repgt = iog.max(dim=1).values
+            sigma = min(max(self.repulsion_sigma, 1e-6), 1.0 - 1e-6)
+            smooth = torch.where(
+                repgt <= sigma,
+                -torch.log1p(-repgt.clamp(max=1.0 - 1e-6)),
+                (repgt - sigma) / (1.0 - sigma) - math.log(1.0 - sigma),
+            )
+            rep_loss = rep_loss + (smooth.unsqueeze(-1) * weight[b, fg_b]).sum()
+        return rep_loss / target_scores_sum
 
     def forward(
         self,
@@ -125,11 +208,40 @@ class BboxLoss(nn.Module):
         fg_mask: torch.Tensor,
         imgsz: torch.Tensor,
         stride: torch.Tensor,
+        all_gt_bboxes: torch.Tensor | None = None,
+        target_gt_idx: torch.Tensor | None = None,
+        mask_gt: torch.Tensor | None = None,
     ) -> tuple[torch.Tensor, torch.Tensor]:
         """Compute IoU and DFL losses for bounding boxes."""
-        weight = target_scores.sum(-1)[fg_mask].unsqueeze(-1)
-        iou = bbox_iou(pred_bboxes[fg_mask], target_bboxes[fg_mask], xywh=False, CIoU=True)
-        loss_iou = ((1.0 - iou) * weight).sum() / target_scores_sum
+        score_weight = target_scores.sum(-1)
+        weight = score_weight[fg_mask].unsqueeze(-1)
+        pred_fg = pred_bboxes[fg_mask]
+        target_fg = target_bboxes[fg_mask]
+        wiou, _ = self.wiou_v3_loss(pred_fg, target_fg)
+        loss_box = wiou
+
+        stride_fg = stride.view(1, -1, 1).expand(target_bboxes.shape[0], -1, 1)[fg_mask]
+        pred_px = pred_fg * stride_fg
+        target_px = target_fg * stride_fg
+        if self.nwd_weight > 0:
+            wh_px = (target_px[:, 2:] - target_px[:, :2]).clamp_(0)
+            small_mask = (wh_px[:, 0] * wh_px[:, 1] < self.nwd_small_area).unsqueeze(-1)
+            if small_mask.any():
+                loss_box = loss_box + self.nwd_weight * self.nwd_loss(pred_px, target_px) * small_mask
+
+        loss_iou = (loss_box * weight).sum() / target_scores_sum
+        if self.repgt_weight > 0:
+            stride_full = stride.view(1, -1, 1).expand(pred_bboxes.shape[0], -1, 1)
+            loss_repgt = self.repgt_loss(
+                pred_bboxes * stride_full,
+                all_gt_bboxes,
+                target_gt_idx,
+                fg_mask,
+                mask_gt,
+                score_weight.unsqueeze(-1),
+                target_scores_sum,
+            )
+            loss_iou = loss_iou + self.repgt_weight * loss_repgt
 
         # DFL loss
         if self.dfl_loss:
@@ -354,6 +466,8 @@ class v8DetectionLoss:
         if self.class_weights is not None:
             self.class_weights = self.class_weights.to(device).view(1, 1, -1)
 
+        tal_topk = int(getattr(h, "tal_topk", tal_topk)) if tal_topk == 10 and tal_topk2 is None else int(tal_topk)
+        tal_topk2 = None if tal_topk2 is None else int(tal_topk2)
         self.assigner = TaskAlignedAssigner(
             topk=tal_topk,
             num_classes=self.nc,
@@ -362,7 +476,7 @@ class v8DetectionLoss:
             stride=self.stride.tolist(),
             topk2=tal_topk2,
         )
-        self.bbox_loss = BboxLoss(m.reg_max).to(device)
+        self.bbox_loss = BboxLoss(m.reg_max, h).to(device)
         self.proj = torch.arange(m.reg_max, dtype=torch.float, device=device)
 
     def preprocess(self, targets: torch.Tensor, batch_size: int, scale_tensor: torch.Tensor) -> torch.Tensor:
@@ -445,6 +559,9 @@ class v8DetectionLoss:
                 fg_mask,
                 imgsz,
                 stride_tensor,
+                gt_bboxes,
+                target_gt_idx,
+                mask_gt,
             )
 
         loss[0] *= self.hyp.box  # box gain
@@ -1159,8 +1276,13 @@ class E2ELoss:
 
     def __init__(self, model, loss_fn=v8DetectionLoss):
         """Initialize E2ELoss with one-to-many and one-to-one detection losses using the provided model."""
-        self.one2many = loss_fn(model, tal_topk=10)
-        self.one2one = loss_fn(model, tal_topk=7, tal_topk2=1)
+        h = model.args
+        self.one2many = loss_fn(model, tal_topk=int(getattr(h, "tal_topk", 10)))
+        self.one2one = loss_fn(
+            model,
+            tal_topk=int(getattr(h, "tal_topk_one2one", 7)),
+            tal_topk2=int(getattr(h, "tal_topk_one2one_secondary", 1)),
+        )
         self.updates = 0
         self.total = 1.0
         # init gain

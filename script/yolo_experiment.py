@@ -11,7 +11,7 @@ from typing import Any
 import yaml
 
 WORKSPACE_ROOT = Path(__file__).resolve().parents[1]
-LOCAL_ULTRALYTICS_REPO = WORKSPACE_ROOT / "ultralytics"
+LOCAL_ULTRALYTICS_REPO = WORKSPACE_ROOT / "ultralytics-main"
 LOCAL_ULTRALYTICS_PACKAGE = LOCAL_ULTRALYTICS_REPO / "ultralytics"
 # 
 SECTION_TO_KEYS: dict[str, tuple[str, ...]] = {
@@ -544,9 +544,26 @@ def ensure_local_ultralytics_repo() -> None:
     """Make sure the local Ultralytics repo is imported before any installed wheel."""
     if not LOCAL_ULTRALYTICS_REPO.exists():
         raise ConfigError(f"未找到本地 Ultralytics 仓库: {LOCAL_ULTRALYTICS_REPO}")
-    repo_text = str(LOCAL_ULTRALYTICS_REPO)
-    if repo_text not in sys.path:
-        sys.path.insert(0, repo_text)
+    repo_text = str(LOCAL_ULTRALYTICS_REPO.resolve())
+    for existing in (repo_text, str(LOCAL_ULTRALYTICS_REPO)):
+        while existing in sys.path:
+            sys.path.remove(existing)
+    sys.path.insert(0, repo_text)
+
+    loaded_module = sys.modules.get("ultralytics")
+    if loaded_module is None:
+        return
+
+    module_file = getattr(loaded_module, "__file__", None)
+    if module_file is None:
+        raise ConfigError("当前进程已导入未知来源的 ultralytics，无法确认是否为本地源码。")
+    try:
+        Path(module_file).resolve().relative_to(LOCAL_ULTRALYTICS_PACKAGE.resolve())
+    except ValueError as exc:
+        raise ConfigError(
+            "当前进程已从非本地源码导入 ultralytics，"
+            f"实际路径: {module_file}；期望路径位于: {LOCAL_ULTRALYTICS_PACKAGE}"
+        ) from exc
 
 
 def parse_key_value(entry: str) -> tuple[str, Any]:

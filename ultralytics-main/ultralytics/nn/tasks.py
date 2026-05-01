@@ -41,6 +41,7 @@ from ultralytics.nn.modules import (
     CBLinear,
     Classify,
     Concat,
+    CoordAtt,
     Conv,
     Conv2,
     ConvTranspose,
@@ -48,6 +49,7 @@ from ultralytics.nn.modules import (
     DWConv,
     DWConvTranspose2d,
     Focus,
+    FreqFusion,
     GhostBottleneck,
     GhostConv,
     HGBlock,
@@ -62,6 +64,7 @@ from ultralytics.nn.modules import (
     RepNCSPELAN4,
     RepVGGDW,
     ResNetLayer,
+    SAF,
     RTDETRDecoder,
     SCDown,
     Segment,
@@ -403,7 +406,7 @@ class DetectionModel(BaseModel):
             def _forward(x):
                 """Perform a forward pass through the model, handling different Detect subclass types accordingly."""
                 output = self.forward(x)
-                if self.end2end:
+                if isinstance(output, dict) and "one2many" in output:
                     output = output["one2many"]
                 return output["feats"]
 
@@ -511,7 +514,9 @@ class DetectionModel(BaseModel):
 
     def init_criterion(self):
         """Initialize the loss criterion for the DetectionModel."""
-        return E2ELoss(self) if getattr(self, "end2end", False) else v8DetectionLoss(self)
+        head = self.model[-1]
+        use_prog_loss = getattr(self, "end2end", False) or getattr(head, "prog_loss", False)
+        return E2ELoss(self) if use_prog_loss else v8DetectionLoss(self)
 
 
 class OBBModel(DetectionModel):
@@ -1553,7 +1558,7 @@ def parse_model(d, ch, verbose=True):
     # Args
     legacy = True  # backward compatibility for v3/v5/v8/v9 models
     max_channels = float("inf")
-    nc, act, scales, end2end = (d.get(x) for x in ("nc", "activation", "scales", "end2end"))
+    nc, act, scales, end2end, prog_loss = (d.get(x) for x in ("nc", "activation", "scales", "end2end", "prog_loss"))
     reg_max = d.get("reg_max", 16)
     depth, width, kpt_shape = (d.get(x, 1.0) for x in ("depth_multiple", "width_multiple", "kpt_shape"))
     scale = d.get("scale")
@@ -1676,6 +1681,14 @@ def parse_model(d, ch, verbose=True):
             c2 = args[1] if args[3] else args[1] * 4
         elif m is torch.nn.BatchNorm2d:
             args = [ch[f]]
+        elif m is CoordAtt:
+            c2 = ch[f]
+            args = [c2, *args]
+        elif m in frozenset({SAF, FreqFusion}):
+            c2 = args[0]
+            if c2 != nc:
+                c2 = make_divisible(min(c2, max_channels) * width, 8)
+            args = [[ch[x] for x in f], c2, *args[1:]]
         elif m is Concat:
             c2 = sum(ch[x] for x in f)
         elif m in frozenset(
@@ -1694,6 +1707,8 @@ def parse_model(d, ch, verbose=True):
             }
         ):
             args.extend([reg_max, end2end, [ch[x] for x in f]])
+            if m is Detect:
+                args.append(bool(prog_loss))
             if m is Segment or m is YOLOESegment or m is Segment26 or m is YOLOESegment26:
                 args[2] = make_divisible(min(args[2], max_channels) * width, 8)
             if m in {Detect, YOLOEDetect, Segment, Segment26, YOLOESegment, YOLOESegment26, Pose, Pose26, OBB, OBB26}:

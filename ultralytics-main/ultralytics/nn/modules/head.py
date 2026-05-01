@@ -75,7 +75,9 @@ class Detect(nn.Module):
     legacy = False  # backward compatibility for v3/v5/v8/v9 models
     xyxy = False  # xyxy or xywh output
 
-    def __init__(self, nc: int = 80, reg_max=16, end2end=False, ch: tuple = ()):
+    def __init__(
+        self, nc: int = 80, reg_max=16, end2end=False, ch: tuple = (), prog_loss: bool = False
+    ):
         """Initialize the YOLO detection layer with specified number of classes and channels.
 
         Args:
@@ -83,8 +85,11 @@ class Detect(nn.Module):
             reg_max (int): Maximum number of DFL channels.
             end2end (bool): Whether to use end-to-end NMS-free detection.
             ch (tuple): Tuple of channel sizes from backbone feature maps.
+            prog_loss (bool): Whether to keep one-to-one training branches while standard NMS inference is used.
         """
         super().__init__()
+        self.prog_loss = prog_loss
+        self._end2end = end2end
         self.nc = nc  # number of classes
         self.nl = len(ch)  # number of detection layers
         self.reg_max = reg_max  # DFL channels (ch[0] // 16 to scale 4/8/12/16/20 for n/s/m/l/x)
@@ -108,7 +113,7 @@ class Detect(nn.Module):
         )
         self.dfl = DFL(self.reg_max) if self.reg_max > 1 else nn.Identity()
 
-        if end2end:
+        if end2end or prog_loss:
             self.one2one_cv2 = copy.deepcopy(self.cv2)
             self.one2one_cv3 = copy.deepcopy(self.cv3)
 
@@ -148,7 +153,7 @@ class Detect(nn.Module):
     ) -> dict[str, torch.Tensor] | torch.Tensor | tuple[torch.Tensor, dict[str, torch.Tensor]]:
         """Concatenates and returns predicted bounding boxes and class probabilities."""
         preds = self.forward_head(x, **self.one2many)
-        if self.end2end:
+        if self.end2end or (self.training and self.prog_loss):
             x_detach = [xi.detach() for xi in x]
             one2one = self.forward_head(x_detach, **self.one2one)
             preds = {"one2many": preds, "one2one": one2one}

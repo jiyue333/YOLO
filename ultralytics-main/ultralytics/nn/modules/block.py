@@ -40,7 +40,9 @@ __all__ = (
     "C3x",
     "CBFuse",
     "CBLinear",
+    "CoordAtt",
     "ContrastiveHead",
+    "FreqFusion",
     "GhostBottleneck",
     "HGBlock",
     "HGStem",
@@ -50,6 +52,7 @@ __all__ = (
     "RepNCSPELAN4",
     "RepVGGDW",
     "ResNetLayer",
+    "SAF",
     "SCDown",
     "TorchVision",
 )
@@ -235,6 +238,97 @@ class SPPF(nn.Module):
         y.extend(self.m(y[-1]) for _ in range(getattr(self, "n", 3)))
         y = self.cv2(torch.cat(y, 1))
         return y + x if getattr(self, "add", False) else y
+
+
+class CoordAtt(nn.Module):
+    """Coordinate Attention block for preserving positional cues on small-object feature maps."""
+
+    def __init__(self, c1: int, reduction: int = 32):
+        """Initialize Coordinate Attention.
+
+        Args:
+            c1 (int): Input and output channels.
+            reduction (int): Channel reduction ratio for the shared attention embedding.
+        """
+        super().__init__()
+        c_ = max(8, c1 // reduction)
+        self.conv1 = nn.Conv2d(c1, c_, 1, bias=False)
+        self.bn1 = nn.BatchNorm2d(c_)
+        self.act = nn.Hardswish()
+        self.conv_h = nn.Conv2d(c_, c1, 1, bias=True)
+        self.conv_w = nn.Conv2d(c_, c1, 1, bias=True)
+
+    def forward(self, x: torch.Tensor) -> torch.Tensor:
+        """Apply height-aware and width-aware attention."""
+        _, _, h, w = x.shape
+        x_h = x.mean(dim=3, keepdim=True)
+        x_w = x.mean(dim=2, keepdim=True).transpose(2, 3)
+        y = torch.cat((x_h, x_w), dim=2)
+        y = self.act(self.bn1(self.conv1(y)))
+        a_h, a_w = torch.split(y, [h, w], dim=2)
+        a_w = a_w.transpose(2, 3)
+        return x * self.conv_h(a_h).sigmoid() * self.conv_w(a_w).sigmoid()
+
+
+class SAF(nn.Module):
+    """Shallow Assisted Fusion for injecting early backbone detail into neck features."""
+
+    def __init__(self, ch: tuple[int, int], c2: int):
+        """Initialize SAF.
+
+        Args:
+            ch (tuple[int, int]): Channels for neck and shallow backbone inputs.
+            c2 (int): Output channels.
+        """
+        super().__init__()
+        c_neck, c_shallow = ch
+        self.neck_proj = Conv(c_neck, c2, 1)
+        self.shallow_proj = Conv(c_shallow, c2, 1)
+        self.gate = nn.Sequential(nn.Conv2d(c2 * 2, c2, 1, bias=True), nn.Sigmoid())
+        self.out = Conv(c2, c2, 3)
+
+    def forward(self, x: list[torch.Tensor]) -> torch.Tensor:
+        """Fuse a neck feature with a resized shallow backbone feature."""
+        neck, shallow = x
+        neck = self.neck_proj(neck)
+        shallow = self.shallow_proj(shallow)
+        if shallow.shape[2:] != neck.shape[2:]:
+            shallow = F.interpolate(shallow, size=neck.shape[2:], mode="nearest")
+        gate = self.gate(torch.cat((neck, shallow), dim=1))
+        return self.out(neck + gate * shallow)
+
+
+class FreqFusion(nn.Module):
+    """Lightweight frequency-aware fusion for high-resolution neck upsampling sites."""
+
+    def __init__(self, ch: tuple[int, int], c2: int, k: int = 3):
+        """Initialize FreqFusion.
+
+        Args:
+            ch (tuple[int, int]): Channels for low-resolution and lateral high-resolution inputs.
+            c2 (int): Output channels.
+            k (int): Local averaging kernel used to separate low/high-frequency detail.
+        """
+        super().__init__()
+        c_low, c_high = ch
+        self.low_proj = Conv(c_low, c2, 1)
+        self.high_proj = Conv(c_high, c2, 1)
+        self.k = k
+        self.gate = nn.Sequential(nn.Conv2d(c2 * 2, c2, 1, bias=True), nn.Sigmoid())
+        self.out = Conv(c2, c2, 3)
+
+    def forward(self, x: list[torch.Tensor]) -> torch.Tensor:
+        """Fuse low-resolution semantic features with lateral high-frequency detail."""
+        low, high = x
+        low = F.interpolate(low, size=high.shape[2:], mode="nearest")
+        low = self.low_proj(low)
+        high = self.high_proj(high)
+        pad = self.k // 2
+        low_freq = F.avg_pool2d(low, kernel_size=self.k, stride=1, padding=pad)
+        high_base = F.avg_pool2d(high, kernel_size=self.k, stride=1, padding=pad)
+        high_freq = high - high_base
+        gate = self.gate(torch.cat((low_freq, high_freq), dim=1))
+        return self.out(low_freq + high + gate * high_freq)
 
 
 class C1(nn.Module):

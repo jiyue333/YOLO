@@ -179,6 +179,11 @@ CFG_FLOAT_KEYS = frozenset(
         "time",
         "workspace",
         "batch",
+        "wiou_alpha",
+        "wiou_delta",
+        "nwd_small_area",
+        "nwd_constant",
+        "repulsion_sigma",
     }
 )
 CFG_FRACTION_KEYS = frozenset(
@@ -203,6 +208,10 @@ CFG_FRACTION_KEYS = frozenset(
         "mixup",
         "cutmix",
         "copy_paste",
+        "small_copy_paste_area",
+        "wiou_momentum",
+        "nwd_weight",
+        "repgt_weight",
         "conf",
         "iou",
         "fraction",
@@ -222,6 +231,9 @@ CFG_INT_KEYS = frozenset(
         "line_width",
         "nbs",
         "save_period",
+        "tal_topk",
+        "tal_topk_one2one",
+        "tal_topk_one2one_secondary",
     }
 )
 CFG_BOOL_KEYS = frozenset(
@@ -259,6 +271,7 @@ CFG_BOOL_KEYS = frozenset(
         "nms",
         "profile",
         "end2end",
+        "select_mosaic",
     }
 )
 

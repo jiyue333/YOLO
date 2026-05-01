@@ -815,6 +815,41 @@ class Mosaic(BaseMixTransform):
         return final_labels
 
 
+class SelectMosaic(Mosaic):
+    """Mosaic variant that prefers images with dense small-object annotations."""
+
+    def __init__(self, dataset, imgsz: int = 640, p: float = 1.0, n: int = 4, small_area: float = 0.01):
+        """Initialize Select-Mosaic with a normalized small-object area threshold."""
+        super().__init__(dataset=dataset, imgsz=imgsz, p=p, n=n)
+        self.small_area = small_area
+
+    def _score_index(self, index: int) -> float:
+        """Return a sampling score that favors images with many small boxes."""
+        labels = getattr(self.dataset, "labels", None)
+        if not labels or index >= len(labels):
+            return 1.0
+        bboxes = labels[index].get("bboxes", None)
+        if bboxes is None or len(bboxes) == 0:
+            return 1.0
+        bboxes = np.asarray(bboxes)
+        areas = bboxes[:, 2] * bboxes[:, 3]
+        small = areas < self.small_area
+        if not small.any():
+            return 1.0
+        density = float(small.sum())
+        scale_bonus = float((self.small_area / np.clip(areas[small], 1e-9, None)).mean())
+        return 1.0 + density + min(scale_bonus, 4.0)
+
+    def get_indexes(self):
+        """Return mosaic indexes sampled by small-object density."""
+        if self.buffer_enabled and len(self.dataset.buffer):
+            pool = list(self.dataset.buffer)
+        else:
+            pool = list(range(len(self.dataset)))
+        weights = [self._score_index(int(i)) for i in pool]
+        return random.choices(pool, weights=weights, k=self.n - 1)
+
+
 class MixUp(BaseMixTransform):
     """Apply MixUp augmentation to image datasets.
 
@@ -1697,11 +1732,14 @@ class CopyPaste(BaseMixTransform):
         >>> augmented_labels = copypaste(original_labels)
     """
 
-    def __init__(self, dataset=None, pre_transform=None, p: float = 0.5, mode: str = "flip") -> None:
+    def __init__(
+        self, dataset=None, pre_transform=None, p: float = 0.5, mode: str = "flip", small_area: float = 0.01
+    ) -> None:
         """Initialize CopyPaste object with dataset, pre_transform, and probability of applying CopyPaste."""
         super().__init__(dataset=dataset, pre_transform=pre_transform, p=p)
         assert mode in {"flip", "mixup"}, f"Expected `mode` to be `flip` or `mixup`, but got {mode}."
         self.mode = mode
+        self.small_area = small_area
 
     def _mix_transform(self, labels: dict[str, Any]) -> dict[str, Any]:
         """Apply Copy-Paste augmentation to combine objects from another image into the current image."""
@@ -1710,7 +1748,9 @@ class CopyPaste(BaseMixTransform):
 
     def __call__(self, labels: dict[str, Any]) -> dict[str, Any]:
         """Apply Copy-Paste augmentation to an image and its labels."""
-        if len(labels["instances"].segments) == 0 or self.p == 0:
+        if self.p == 0:
+            return labels
+        if len(labels["instances"].segments) == 0 and self.mode != "mixup":
             return labels
         if self.mode == "flip":
             return self._transform(labels)
@@ -1745,6 +1785,8 @@ class CopyPaste(BaseMixTransform):
         instances = labels1.pop("instances")
         instances.convert_bbox(format="xyxy")
         instances.denormalize(w, h)
+        if len(instances.segments) == 0:
+            return self._transform_boxes(labels1, labels2, instances, cls, im, h, w)
 
         im_new = np.zeros(im.shape[:2], np.uint8)
         instances2 = labels2.pop("instances", None)
@@ -1766,6 +1808,53 @@ class CopyPaste(BaseMixTransform):
             result = result[..., None]
         i = im_new.astype(bool)
         im[i] = result[i]
+
+        labels1["img"] = im
+        labels1["cls"] = cls
+        labels1["instances"] = instances
+        return labels1
+
+    def _transform_boxes(
+        self,
+        labels1: dict[str, Any],
+        labels2: dict[str, Any],
+        instances: Instances,
+        cls: np.ndarray,
+        im: np.ndarray,
+        h: int,
+        w: int,
+    ) -> dict[str, Any]:
+        """Copy small detection boxes as rectangular crops when segmentation masks are unavailable."""
+        instances2 = deepcopy(labels2.get("instances", None))
+        if instances2 is None:
+            labels1["img"] = im
+            labels1["cls"] = cls
+            labels1["instances"] = instances
+            return labels1
+
+        src = labels2["img"]
+        src_h, src_w = src.shape[:2]
+        instances2.convert_bbox(format="xyxy")
+        instances2.denormalize(src_w, src_h)
+        areas = instances2.bbox_areas / max(float(src_h * src_w), 1.0)
+        indexes = np.nonzero(areas < self.small_area)[0]
+        if len(indexes):
+            ioa = bbox_ioa(instances2.bboxes[indexes], instances.bboxes)
+            indexes = indexes[(ioa < 0.30).all(1)]
+        indexes = indexes.tolist()
+        if indexes:
+            random.shuffle(indexes)
+
+        limit = round(self.p * len(indexes))
+        for j in indexes[:limit]:
+            x1, y1, x2, y2 = instances2.bboxes[j].round().astype(int)
+            x1, y1 = max(x1, 0), max(y1, 0)
+            x2, y2 = min(x2, src_w, w), min(y2, src_h, h)
+            if x2 <= x1 or y2 <= y1:
+                continue
+            im[y1:y2, x1:x2] = src[y1:y2, x1:x2]
+            cls = np.concatenate((cls, labels2.get("cls", cls)[[j]]), axis=0)
+            instances = Instances.concatenate((instances, instances2[[j]]), axis=0)
 
         labels1["img"] = im
         labels1["cls"] = cls
@@ -2411,7 +2500,15 @@ def v8_transforms(dataset, imgsz: int, hyp: IterableSimpleNamespace, stretch: bo
         >>> hyp.augmentations = augmentations
         >>> transforms = v8_transforms(dataset, imgsz=640, hyp=hyp)
     """
-    mosaic = Mosaic(dataset, imgsz=imgsz, p=hyp.mosaic)
+    small_area = getattr(hyp, "small_copy_paste_area", 0.01)
+
+    def build_mosaic():
+        """Build the configured mosaic transform."""
+        if getattr(hyp, "select_mosaic", False):
+            return SelectMosaic(dataset, imgsz=imgsz, p=hyp.mosaic, small_area=small_area)
+        return Mosaic(dataset, imgsz=imgsz, p=hyp.mosaic)
+
+    mosaic = build_mosaic()
     affine = RandomPerspective(
         degrees=hyp.degrees,
         translate=hyp.translate,
@@ -2423,14 +2520,15 @@ def v8_transforms(dataset, imgsz: int, hyp: IterableSimpleNamespace, stretch: bo
 
     pre_transform = Compose([mosaic, affine])
     if hyp.copy_paste_mode == "flip":
-        pre_transform.insert(1, CopyPaste(p=hyp.copy_paste, mode=hyp.copy_paste_mode))
+        pre_transform.insert(1, CopyPaste(p=hyp.copy_paste, mode=hyp.copy_paste_mode, small_area=small_area))
     else:
         pre_transform.append(
             CopyPaste(
                 dataset,
-                pre_transform=Compose([Mosaic(dataset, imgsz=imgsz, p=hyp.mosaic), affine]),
+                pre_transform=Compose([build_mosaic(), affine]),
                 p=hyp.copy_paste,
                 mode=hyp.copy_paste_mode,
+                small_area=small_area,
             )
         )
     flip_idx = dataset.data.get("flip_idx", [])  # for keypoints augmentation
