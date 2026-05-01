@@ -6,7 +6,7 @@
 # Parameters
 nc: 80 # number of classes
 end2end: False # standard NMS inference/validation path
-prog_loss: True # keep YOLO26 progressive one2one training loss without NMS-free inference
+prog_loss: False # keep YOLO26 progressive one2one training loss without NMS-free inference
 reg_max: 1 # DFL bins
 scales:
   # [depth, width, max_channels]
