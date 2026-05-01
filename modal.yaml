@@ -10,7 +10,7 @@ experiment:
   exist_ok: false
   verbose: true
   seed: 0
-  deterministic: true
+  deterministic: false
 
 model:
   model: /root/cqu/YOLO/ultralytics-main/ultralytics/cfg/models/26/yolo26-small.yaml
