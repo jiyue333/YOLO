@@ -71,6 +71,7 @@ SECTION_TO_KEYS: dict[str, tuple[str, ...]] = {
         "conf",
         "iou",
         "max_det",
+        "nms_max_time_img",
         "half",
         "dnn",
         "plots",

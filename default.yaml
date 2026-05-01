@@ -3,7 +3,7 @@
 # 用法示例：
 #   python script/train.py --config default.yaml
 #   python script/train.py --config default.yaml --set train.epochs=300 --set hyperparameters.lr0=0.005
-#   python script/val.py   --config default.yaml --model runs/experiments/yolo26_p2_data1_recipe/weights/best.pt
+#   python script/val.py   --config default.yaml --model runs/experiments/yolo26_mhaf_data1_recipe/weights/best.pt
 #
 # 设计说明：
 # 1. 该文件按“实验 / 模型 / 数据集 / 训练 / 验证 / 导出 ...”分组，便于做实验时快速阅读。
@@ -13,45 +13,45 @@
 
 meta:
   config_version: 1 # 配置版本，仅用于备注，不会传给 YOLO
-  description: "YOLO26 detect 小目标拥挤场景 smoke 配置；每阶段提交前用 COCO8 跑通 1 epoch" # 配置说明，仅用于备注
+  description: "YOLO26 detect 小目标拥挤场景 COCO8 100 epoch validator 修复后排查配置" # 配置说明，仅用于备注
 
 experiment:
   task: detect # 任务类型：detect | segment | classify | pose | obb
   mode: train # 仅作为记录；train.py 会强制用 train，val.py 会强制用 val
-  project: runs/smoke # 实验输出根目录，脚本会自动转为绝对路径
-  name: validator_dual_head_metrics # 当前实验名称，对应 project/name
+  project: runs/coco8 # 实验输出根目录，脚本会自动转为绝对路径
+  name: mhaf_mafv2_coco8_100e_valfix_nbs2 # 当前实验名称，对应 project/name
   exist_ok: true # 是否允许复用已有同名实验目录
   verbose: true # 是否打印详细日志
   seed: 0 # 随机种子
   deterministic: false # 是否尽量保证可复现（通常更稳，但可能稍慢）
 
 model:
-  model: ultralytics/ultralytics/cfg/models/26/yolo26-mhaf-p2.yaml # MHAF-style YOLO26-P2/P3/P4/P5；P2 stride=4
-  pretrained: false # smoke 从结构 yaml 构建，避免依赖不存在的本地权重
+  model: /Users/taless/Code/YOLO/ultralytics/ultralytics/cfg/models/26/yolo26-mhaf.yaml # MHAF-style YOLO26；P2 仅作辅助融合，检测头为 P3/P4/P5
+  pretrained: yolo26n.pt # 加载 YOLO26n 预训练权重；结构不匹配层由 Ultralytics transfer 机制跳过
   freeze: null # 冻结层：null/0=不冻结；整数=冻结前 N 层；列表=指定层索引
   compile: false # 是否启用 torch.compile；可写 false/true/"default"/"reduce-overhead" 等
 
 dataset:
   data: ultralytics/ultralytics/cfg/datasets/coco8.yaml # 每阶段提交前使用 COCO8 smoke
-  fraction: 0.25 # 使用训练集的比例，1.0 表示全量数据
+  fraction: 1.0 # 使用训练集的比例，1.0 表示全量数据
   single_cls: false # 是否把所有类别视为单类别任务
 
 train:
-  epochs: 300 # 主训练：Crowd 场景长训 300 epochs；smoke 前临时改为 1
+  epochs: 100 # COCO8 指标排查
   time: null # 最大训练时长（单位：小时）；设置后会覆盖 epochs
   patience: 100 # 早停容忍轮数
-  batch: 1 # smoke batch
-  imgsz: 128 # smoke 输入尺寸；multi_scale=0.5 时避免 P5 在 batch=1 下退化为 1x1
+  batch: 2 # COCO8 100 epoch 排查使用小 batch
+  imgsz: 640 # 以 YOLO 标准 640 输入评估 P2/P3/P4/P5 结构
   save: true # 是否保存训练结果和权重
   save_period: -1 # 每 N 轮额外保存一次 checkpoint；<1 表示关闭
   cache: false # 是否缓存图像；可写 false/true/"ram"/"disk"
   device: cpu # 训练设备；如 0 / "cpu" / "mps" / [0,1]
-  workers: 0 # smoke 避免多进程 dataloader 干扰
+  workers: 8 # smoke 避免多进程 dataloader 干扰
   optimizer: MuSGD # 对齐官方 YOLO26/Muon 配方优化器；参考 https://github.com/KellerJordan/Muon
   rect: false # 是否使用矩形训练批次
   cos_lr: true # SGDR/PyTorch Cosine LR；参考 https://arxiv.org/abs/1608.03983
   close_mosaic: 15 # YOLOX close_mosaic 策略：最后 10-15 epoch 关闭强增强
-  resume: false # 是否恢复训练；也可以填 last.pt 路径
+  resume: null # 干净启动 100 epoch；从 model.pretrained=yolo26n.pt 做迁移加载
   amp: true # 是否启用自动混合精度 AMP
   ema_decay: 0.9999 # Mean Teacher/Ultralytics EMA 最大衰减；参考 https://arxiv.org/abs/1703.01780
   profile: false # 训练时是否额外 profile ONNX/TensorRT 速度
@@ -64,10 +64,11 @@ validation:
   conf: null # 置信度阈值；null 时让 Ultralytics 使用模式默认值
   iou: 0.7 # NMS 的 IoU 阈值（Ultralytics detect 默认值）；这是后处理阈值，不是训练 loss 的 IoU
   max_det: 3000 # 每张图最多保留多少检测框
+  nms_max_time_img: 0.25 # dense/early validation 给 NMS 更多时间，避免 max_det=3000 + 低 conf 时截断指标
   half: false # 验证时是否启用 FP16
   dnn: false # 是否使用 OpenCV DNN（主要用于 ONNX 推理/验证）
   plots: true # 是否保存验证图表和样例图
-  end2end: true # 显式与官方 YOLO26 端到端头配置对齐
+  end2end: false # 关闭 YOLO26 one-to-one/e2e，验证使用 one-to-many + NMS
   visualize: false # 验证时可视化 TP/FP/FN 或预测特征
 
 prediction:
@@ -122,7 +123,7 @@ hyperparameters:
   cls: 0.56 # 官方 YOLO26n 配方 classification loss gain
   cls_pw: 0.0 # 类别频率修正强度，0 表示关闭
   dfl: 9.04 # 官方 YOLO26n 配方 distribution focal loss gain；当前仓库的 YOLO26 detect 仍会实际使用
-  nbs: 64 # nominal batch size，用于 loss 归一化
+  nbs: 2 # COCO8 排查时与实际 batch 对齐，确保每个 batch 都有优化器更新；正式训练可恢复 64
   wiou_alpha: 1.9 # Wise-IoU v3 alpha；参考 https://arxiv.org/abs/2301.10051 和 https://github.com/Instinct323/wiou
   wiou_delta: 3.0 # Wise-IoU v3 delta
   wiou_momentum: 0.01 # Wise-IoU v3 running mean EMA momentum
@@ -132,8 +133,8 @@ hyperparameters:
   repgt_weight: 0.4 # Repulsion Loss 仅 RepGT 权重；参考 https://arxiv.org/abs/1711.07752
   repulsion_sigma: 0.5 # Repulsion Loss smooth-ln sigma
   tal_topk: 20 # TOOD/TAL dense-crowd one-to-many topk；参考 https://arxiv.org/abs/2108.07755 和 Ultralytics TAL
-  tal_topk_one2one: 7 # 保留 YOLO26 one-to-one/e2e 更严格候选设置
-  tal_topk_one2one_secondary: 1 # one-to-one 末级筛选保持单候选
+  tal_topk_one2one: 7 # 仅 end2end=true 时生效；当前关闭 e2e 后不参与训练
+  tal_topk_one2one_secondary: 1 # 仅 end2end=true 时生效；当前关闭 e2e 后不参与训练
   cls_pos_weight: 0.75 # BCE 正样本权重；参考 Focal Loss/Detectron2 抑制过度自信
 
 augmentations:
