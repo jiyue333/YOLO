@@ -202,6 +202,7 @@ def run_from_cli(mode: str) -> int:
     """Parse CLI arguments and run the requested mode."""
     parser = build_parser(mode)
     args = parser.parse_args()
+    ensure_local_ultralytics_repo()
     prepared = prepare_run(mode=mode, cli_args=args)
     print_summary(prepared=prepared, mode=mode, show_config=args.show_config or args.dry_run, dry_run=args.dry_run)
 
@@ -453,6 +454,10 @@ def resolve_path_value(key: str, value: Any, config_path: Path) -> Any:
         return value
 
     path = Path(text).expanduser()
+    local_ultralytics_path = resolve_local_ultralytics_reference(key=key, path=path)
+    if local_ultralytics_path is not None:
+        return str(local_ultralytics_path)
+
     if path.is_absolute():
         return str(path)
 
@@ -477,6 +482,25 @@ def resolve_path_value(key: str, value: Any, config_path: Path) -> Any:
             return str(candidate.resolve())
 
     return value
+
+
+def resolve_local_ultralytics_reference(key: str, path: Path) -> Path | None:
+    """Map Ultralytics config/model references to this workspace's local source tree."""
+    if key not in {"model", "cfg", "tracker"}:
+        return None
+
+    parts = path.parts
+    candidate: Path | None = None
+    if "ultralytics-main" in parts:
+        index = parts.index("ultralytics-main")
+        candidate = LOCAL_ULTRALYTICS_REPO.joinpath(*parts[index + 1 :])
+    elif "ultralytics" in parts:
+        index = parts.index("ultralytics")
+        candidate = LOCAL_ULTRALYTICS_PACKAGE.joinpath(*parts[index + 1 :])
+
+    if candidate is not None and candidate.exists():
+        return candidate.resolve()
+    return None
 
 
 def print_summary(prepared: PreparedRun, mode: str, show_config: bool = False, dry_run: bool = False) -> None:
