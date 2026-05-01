@@ -28,6 +28,8 @@ from ultralytics.nn.modules import (
     A2C2f,
     AConv,
     ADown,
+    AAF,
+    AVG,
     Bottleneck,
     BottleneckCSP,
     C2f,
@@ -36,6 +38,7 @@ from ultralytics.nn.modules import (
     C2fPSA,
     C3Ghost,
     C3k2,
+    C3k2Shift,
     C3x,
     CBFuse,
     CBLinear,
@@ -60,6 +63,7 @@ from ultralytics.nn.modules import (
     Pose,
     Pose26,
     RepC3,
+    RepHMS,
     RepConv,
     RepNCSPELAN4,
     RepVGGDW,
@@ -1596,6 +1600,7 @@ def parse_model(d, ch, verbose=True):
             C2,
             C2f,
             C3k2,
+            C3k2Shift,
             RepNCSPELAN4,
             ELAN1,
             ADown,
@@ -1609,6 +1614,7 @@ def parse_model(d, ch, verbose=True):
             DWConvTranspose2d,
             C3x,
             RepC3,
+            RepHMS,
             PSA,
             SCDown,
             C2fCIB,
@@ -1622,6 +1628,7 @@ def parse_model(d, ch, verbose=True):
             C2,
             C2f,
             C3k2,
+            C3k2Shift,
             C2fAttn,
             C3,
             C3TR,
@@ -1659,10 +1666,12 @@ def parse_model(d, ch, verbose=True):
             if m in repeat_modules:
                 args.insert(2, n)  # number of repeats
                 n = 1
-            if m is C3k2:  # for M/L/X sizes
+            if m in frozenset({C3k2, C3k2Shift}):  # for M/L/X sizes
                 legacy = False
                 if scale in "mlx":
                     args[3] = True
+            if m is RepHMS:
+                legacy = False
             if m is A2C2f:
                 legacy = False
                 if scale in "lx":  # for L/X sizes
@@ -1684,7 +1693,11 @@ def parse_model(d, ch, verbose=True):
         elif m is CoordAtt:
             c2 = ch[f]
             args = [c2, *args]
-        elif m in frozenset({SAF, FreqFusion}):
+        elif m is AVG:
+            c2 = ch[f]
+        elif m in frozenset({AAF, SAF}):
+            c2 = sum(ch[x] for x in f)
+        elif m is FreqFusion:
             c2 = args[0]
             if c2 != nc:
                 c2 = make_divisible(min(c2, max_channels) * width, 8)

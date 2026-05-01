@@ -137,7 +137,7 @@ class BboxLoss(nn.Module):
         c_xy1 = torch.minimum(pred_bboxes[:, :2], target_bboxes[:, :2])
         c_xy2 = torch.maximum(pred_bboxes[:, 2:], target_bboxes[:, 2:])
         c2 = (c_xy2 - c_xy1).pow(2).sum(1).clamp_(1e-7)
-        distance_gain = torch.exp((rho2 / c2).detach().clamp(max=10.0))
+        distance_gain = torch.exp((rho2 / c2.detach()).clamp(max=10.0))
 
         beta = (loss_iou.detach() / self.wiou_mean.clamp(min=1e-7)).clamp(min=1e-7, max=10.0)
         focus = beta / (self.wiou_delta * torch.pow(beta.new_tensor(self.wiou_alpha), beta - self.wiou_delta))
@@ -1295,10 +1295,20 @@ class E2ELoss:
     def __call__(self, preds: Any, batch: dict[str, torch.Tensor]) -> tuple[torch.Tensor, torch.Tensor]:
         """Calculate the sum of the loss for box, cls and dfl multiplied by batch size."""
         preds = self.one2many.parse_output(preds)
-        one2many, one2one = preds["one2many"], preds["one2one"]
+        if "one2many" not in preds:
+            return self.one2many.loss(preds, batch)
+
+        one2many = preds["one2many"]
         loss_one2many = self.one2many.loss(one2many, batch)
+        if "one2one" not in preds:
+            return loss_one2many
+
+        one2one = preds["one2one"]
         loss_one2one = self.one2one.loss(one2one, batch)
-        return loss_one2many[0] * self.o2m + loss_one2one[0] * self.o2o, loss_one2one[1]
+        return (
+            loss_one2many[0] * self.o2m + loss_one2one[0] * self.o2o,
+            loss_one2many[1] * self.o2m + loss_one2one[1] * self.o2o,
+        )
 
     def update(self) -> None:
         """Update the weights for one-to-many and one-to-one losses based on the decay schedule."""

@@ -954,11 +954,13 @@ class BaseTrainer:
             )
             self.epochs += ckpt["epoch"]  # finetune additional epochs
         self._load_checkpoint_state(ckpt)
-        if getattr(unwrap_model(self.model), "end2end", False):
+        model = unwrap_model(self.model)
+        head = model.model[-1] if hasattr(model, "model") else None
+        if getattr(model, "end2end", False) or getattr(head, "prog_loss", False):
             # initialize loss and resume o2o and o2m args
-            unwrap_model(self.model).criterion = unwrap_model(self.model).init_criterion()
-            unwrap_model(self.model).criterion.updates = start_epoch - 1
-            unwrap_model(self.model).criterion.update()
+            model.criterion = model.init_criterion()
+            model.criterion.updates = start_epoch - 1
+            model.criterion.update()
         self.start_epoch = start_epoch
         if start_epoch > (self.epochs - self.args.close_mosaic):
             self._close_dataloader_mosaic()

@@ -1,12 +1,12 @@
 # Ultralytics 🚀 AGPL-3.0 License - https://ultralytics.com/license
 
-# YOLO26 small-object detection variant with P3/8 - P5/32 outputs.
+# YOLO26 small-object detection variant with P2/4 - P5/32 outputs.
 # Uses standard one2many + NMS training/inference; no end2end one2one branch.
 
 # Parameters
 nc: 80 # number of classes
 end2end: False # standard NMS inference/validation path
-prog_loss: False # disable one2one/progressive branch to reduce training cost
+prog_loss: True # keep YOLO26 progressive one2one training loss without NMS-free inference
 reg_max: 1 # DFL bins
 scales:
   # [depth, width, max_channels]
@@ -16,40 +16,56 @@ scales:
   l: [1.00, 1.00, 512]
   x: [1.00, 1.50, 512]
 
-# YOLO26n backbone, unchanged
+# MHAF-YOLO-style backbone with RepHMS + GHFKS stage-wise kernels.
 backbone:
   # [from, repeats, module, args]
   - [-1, 1, Conv, [64, 3, 2]] # 0-P1/2
   - [-1, 1, Conv, [128, 3, 2]] # 1-P2/4
-  - [-1, 2, C3k2, [256, False, 0.25]]
+  - [-1, 1, RepHMS, [256, 2, 1, 2, 3]] # 2-P2/4 k=3
   - [-1, 1, Conv, [256, 3, 2]] # 3-P3/8
-  - [-1, 2, C3k2, [512, False, 0.25]]
+  - [-1, 1, RepHMS, [512, 3, 1, 2, 5]] # 4-P3/8 shallow k=5
   - [-1, 1, Conv, [512, 3, 2]] # 5-P4/16
-  - [-1, 2, C3k2, [512, True]]
+  - [-1, 1, RepHMS, [512, 3, 1, 2, 7]] # 6-P4/16 middle k=7
   - [-1, 1, Conv, [1024, 3, 2]] # 7-P5/32
-  - [-1, 2, C3k2, [1024, True]]
+  - [-1, 1, RepHMS, [1024, 3, 1, 2, 9]] # 8-P5/32 deep k=9
   - [-1, 1, SPPF, [1024, 5, 3, True]] # 9
-  - [-1, 2, C2PSA, [1024]] # 10
+  - [-1, 4, C2PSA, [1024]] # 10 actual PSA blocks=2 after nano depth scaling
 
-# Small-object neck/head variant
+# MAFPN neck: top-down SAF and bottom-up AAF, each followed by RepHMS refinement.
 head:
-  - [-1, 1, nn.Upsample, [None, 2, "nearest"]]
-  - [[-1, 6], 1, Concat, [1]] # cat backbone P4
-  - [-1, 2, C3k2, [512, True]] # 13
+  - [[10, 6], 1, SAF, []] # 11 P5 SAF boundary: current, previous
+  - [-1, 1, RepHMS, [1024, 2, 1, 2, 9]] # 12 P5 SAF output
 
-  - [[-1, 4], 1, FreqFusion, [256]] # frequency-aware P4->P3 fusion
-  - [-1, 2, C3k2, [256, True]] # 15
-  - [[-1, 2], 1, SAF, [256]] # inject shallow P2/4 detail into P3
-  - [-1, 1, CoordAtt, []] # 17 (P3/8-small)
+  - [[12, 6], 1, FreqFusion, [512]] # 13 P5 SAF upsample to P4
+  - [[6, 4, 10, 13], 1, SAF, []] # 14 P4 SAF: current, previous, next, next-SAF-up
+  - [-1, 1, RepHMS, [512, 3, 1, 2, 7]] # 15 P4 SAF output
 
-  - [-1, 1, Conv, [256, 3, 2]]
-  - [[-1, 13], 1, Concat, [1]] # cat head P4
-  - [-1, 2, C3k2, [512, True]] # 20
-  - [[-1, 4], 1, SAF, [512]] # inject backbone P3/8 detail into P4
-  - [-1, 1, CoordAtt, []] # 22 (P4/16-medium)
+  - [[15, 4], 1, FreqFusion, [256]] # 16 P4 SAF upsample to P3
+  - [[4, 2, 6, 16], 1, SAF, []] # 17 P3 SAF: current, previous, next, next-SAF-up
+  - [-1, 1, RepHMS, [256, 3, 1, 2, 5]] # 18 P3 SAF output
+  - [-1, 1, CoordAtt, []] # 19 P3 attention
 
-  - [-1, 1, Conv, [512, 3, 2]]
-  - [[-1, 10], 1, Concat, [1]] # cat head P5
-  - [-1, 1, C3k2, [1024, True, 0.5, True]] # 25 (P5/32-large)
+  - [[19, 2], 1, FreqFusion, [128, 5, 3, 1, 3, 1, 32]] # 20 P3 SAF upsample to P2
+  - [[2, 0, 4, 20], 1, SAF, []] # 21 P2 SAF: current, previous, next, next-SAF-up
+  - [-1, 1, RepHMS, [128, 2, 1, 2, 3]] # 22 P2 SAF output
+  - [-1, 1, CoordAtt, []] # 23 P2 attention
 
-  - [[17, 22, 25], 1, Detect, [nc]] # Detect(P3, P4, P5)
+  - [[23, 19], 1, AAF, []] # 24 P2 AAF boundary: current, next
+  - [-1, 1, RepHMS, [128, 2, 1, 2, 3]] # 25 P2 AAF output
+  - [-1, 1, CoordAtt, []] # 26 P2 output
+
+  - [-1, 1, Conv, [128, 3, 2]] # 27 P2 AAF output downsample to P3
+  - [[19, 23, 15, 27], 1, AAF, []] # 28 P3 AAF: current, previous, next, previous-AAF-down
+  - [-1, 1, RepHMS, [256, 3, 1, 2, 5]] # 29 P3 AAF output
+  - [-1, 1, CoordAtt, []] # 30 P3 output
+
+  - [-1, 1, Conv, [256, 3, 2]] # 31 P3 AAF output downsample to P4
+  - [[15, 19, 12, 31], 1, AAF, []] # 32 P4 AAF: current, previous, next, previous-AAF-down
+  - [-1, 1, RepHMS, [512, 3, 1, 2, 7]] # 33 P4 AAF output
+  - [-1, 1, CoordAtt, []] # 34 P4 output
+
+  - [-1, 1, Conv, [512, 3, 2]] # 35 P4 AAF output downsample to P5
+  - [[12, 15, 35], 1, AAF, []] # 36 P5 AAF boundary: current, previous, previous-AAF-down
+  - [-1, 1, RepHMS, [1024, 2, 1, 2, 9]] # 37 P5 output
+
+  - [[26, 30, 34, 37], 1, Detect, [nc]] # Detect(P2, P3, P4, P5)

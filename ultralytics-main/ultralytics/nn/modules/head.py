@@ -194,7 +194,7 @@ class Detect(nn.Module):
             b[-1].bias.data[: self.nc] = math.log(
                 5 / self.nc / (640 / self.stride[i]) ** 2
             )  # cls (.01 objects, 80 classes, 640 img)
-        if self.end2end:
+        if (self.end2end or self.prog_loss) and hasattr(self, "one2one_cv2"):
             for i, (a, b) in enumerate(zip(self.one2one["box_head"], self.one2one["cls_head"])):  # from
                 a[-1].bias.data[:] = 2.0  # box
                 b[-1].bias.data[: self.nc] = math.log(

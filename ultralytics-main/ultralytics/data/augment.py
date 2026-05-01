@@ -816,38 +816,82 @@ class Mosaic(BaseMixTransform):
 
 
 class SelectMosaic(Mosaic):
-    """Mosaic variant that prefers images with dense small-object annotations."""
+    """Select-Mosaic variant that places the densest image into the largest visible mosaic quadrant."""
 
-    def __init__(self, dataset, imgsz: int = 640, p: float = 1.0, n: int = 4, small_area: float = 0.01):
-        """Initialize Select-Mosaic with a normalized small-object area threshold."""
+    def __init__(
+        self,
+        dataset,
+        imgsz: int = 640,
+        p: float = 1.0,
+        n: int = 4,
+        small_area: float = 0.01,
+        select_prob: float = 0.1,
+    ):
+        """Initialize Select-Mosaic.
+
+        The official Select-Mosaic patch swaps the image with the most labels into the largest mosaic quadrant with a
+        small probability. ``small_area`` is accepted for config compatibility with the small-object recipe.
+        """
         super().__init__(dataset=dataset, imgsz=imgsz, p=p, n=n)
         self.small_area = small_area
+        self.select_prob = select_prob
 
-    def _score_index(self, index: int) -> float:
-        """Return a sampling score that favors images with many small boxes."""
-        labels = getattr(self.dataset, "labels", None)
-        if not labels or index >= len(labels):
-            return 1.0
-        bboxes = labels[index].get("bboxes", None)
-        if bboxes is None or len(bboxes) == 0:
-            return 1.0
-        bboxes = np.asarray(bboxes)
-        areas = bboxes[:, 2] * bboxes[:, 3]
-        small = areas < self.small_area
-        if not small.any():
-            return 1.0
-        density = float(small.sum())
-        scale_bonus = float((self.small_area / np.clip(areas[small], 1e-9, None)).mean())
-        return 1.0 + density + min(scale_bonus, 4.0)
+    @staticmethod
+    def _label_count(labels: dict[str, Any]) -> int:
+        """Return the number of labels in a mosaic source image."""
+        return len(labels.get("cls", []))
 
-    def get_indexes(self):
-        """Return mosaic indexes sampled by small-object density."""
-        if self.buffer_enabled and len(self.dataset.buffer):
-            pool = list(self.dataset.buffer)
-        else:
-            pool = list(range(len(self.dataset)))
-        weights = [self._score_index(int(i)) for i in pool]
-        return random.choices(pool, weights=weights, k=self.n - 1)
+    @staticmethod
+    def _largest_quadrant(yc: int, xc: int, s: int) -> int:
+        """Return the official Select-Mosaic quadrant index with the largest visible area."""
+        if yc > s and xc > s:
+            return 0  # top left
+        if yc > s and xc < s:
+            return 1  # top right
+        if yc < s and xc > s:
+            return 2  # bottom left
+        return 3  # bottom right
+
+    def _mosaic4(self, labels: dict[str, Any]) -> dict[str, Any]:
+        """Create a 2x2 mosaic and optionally swap the densest image into the largest quadrant."""
+        mosaic_labels = []
+        s = self.imgsz
+        yc, xc = (int(random.uniform(-x, 2 * s + x)) for x in self.border)
+        labels_list = [labels, *labels["mix_labels"][:3]]
+
+        if random.random() < self.select_prob:
+            index_max_label = max(range(4), key=lambda i: self._label_count(labels_list[i]))
+            index_max_area = self._largest_quadrant(yc, xc, s)
+            labels_list[index_max_area], labels_list[index_max_label] = (
+                labels_list[index_max_label],
+                labels_list[index_max_area],
+            )
+
+        for i, labels_patch in enumerate(labels_list):
+            img = labels_patch["img"]
+            h, w = labels_patch.pop("resized_shape")
+
+            if i == 0:  # top left
+                img4 = np.full((s * 2, s * 2, img.shape[2]), 114, dtype=np.uint8)
+                x1a, y1a, x2a, y2a = max(xc - w, 0), max(yc - h, 0), xc, yc
+                x1b, y1b, x2b, y2b = w - (x2a - x1a), h - (y2a - y1a), w, h
+            elif i == 1:  # top right
+                x1a, y1a, x2a, y2a = xc, max(yc - h, 0), min(xc + w, s * 2), yc
+                x1b, y1b, x2b, y2b = 0, h - (y2a - y1a), min(w, x2a - x1a), h
+            elif i == 2:  # bottom left
+                x1a, y1a, x2a, y2a = max(xc - w, 0), yc, xc, min(s * 2, yc + h)
+                x1b, y1b, x2b, y2b = w - (x2a - x1a), 0, w, min(y2a - y1a, h)
+            elif i == 3:  # bottom right
+                x1a, y1a, x2a, y2a = xc, yc, min(xc + w, s * 2), min(s * 2, yc + h)
+                x1b, y1b, x2b, y2b = 0, 0, min(w, x2a - x1a), min(y2a - y1a, h)
+
+            img4[y1a:y2a, x1a:x2a] = img[y1b:y2b, x1b:x2b]
+            labels_patch = self._update_labels(labels_patch, x1a - x1b, y1a - y1b)
+            mosaic_labels.append(labels_patch)
+
+        final_labels = self._cat_labels(mosaic_labels)
+        final_labels["img"] = img4
+        return final_labels
 
 
 class MixUp(BaseMixTransform):
@@ -1748,7 +1792,7 @@ class CopyPaste(BaseMixTransform):
 
     def __call__(self, labels: dict[str, Any]) -> dict[str, Any]:
         """Apply Copy-Paste augmentation to an image and its labels."""
-        if self.p == 0:
+        if self.p == 0 or random.random() > self.p:
             return labels
         if len(labels["instances"].segments) == 0 and self.mode != "mixup":
             return labels
@@ -1795,10 +1839,9 @@ class CopyPaste(BaseMixTransform):
             instances2.fliplr(w)
         ioa = bbox_ioa(instances2.bboxes, instances.bboxes)  # intersection over area, (N, M)
         indexes = np.nonzero((ioa < 0.30).all(1))[0]  # (N, )
-        n = len(indexes)
         sorted_idx = np.argsort(ioa.max(1)[indexes])
         indexes = indexes[sorted_idx]
-        for j in indexes[: round(self.p * n)]:
+        for j in indexes:
             cls = np.concatenate((cls, labels2.get("cls", cls)[[j]]), axis=0)
             instances = Instances.concatenate((instances, instances2[[j]]), axis=0)
             cv2.drawContours(im_new, instances2.segments[[j]].astype(np.int32), -1, 1, cv2.FILLED)
@@ -1845,8 +1888,7 @@ class CopyPaste(BaseMixTransform):
         if indexes:
             random.shuffle(indexes)
 
-        limit = round(self.p * len(indexes))
-        for j in indexes[:limit]:
+        for j in indexes:
             x1, y1, x2, y2 = instances2.bboxes[j].round().astype(int)
             x1, y1 = max(x1, 0), max(y1, 0)
             x2, y2 = min(x2, src_w, w), min(y2, src_h, h)

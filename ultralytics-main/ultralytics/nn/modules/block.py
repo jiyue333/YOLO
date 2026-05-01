@@ -27,7 +27,9 @@ __all__ = (
     "SPPF",
     "AConv",
     "ADown",
+    "AAF",
     "Attention",
+    "AVG",
     "BNContrastiveHead",
     "Bottleneck",
     "BottleneckCSP",
@@ -37,6 +39,7 @@ __all__ = (
     "C2fPSA",
     "C3Ghost",
     "C3k2",
+    "C3k2Shift",
     "C3x",
     "CBFuse",
     "CBLinear",
@@ -49,6 +52,7 @@ __all__ = (
     "ImagePoolingAttn",
     "Proto",
     "RepC3",
+    "RepHMS",
     "RepNCSPELAN4",
     "RepVGGDW",
     "ResNetLayer",
@@ -270,65 +274,537 @@ class CoordAtt(nn.Module):
         return x * self.conv_h(a_h).sigmoid() * self.conv_w(a_w).sigmoid()
 
 
-class SAF(nn.Module):
-    """Shallow Assisted Fusion for injecting early backbone detail into neck features."""
+class AVG(nn.Module):
+    """Adaptive average downsampling used by MAFPN auxiliary branches."""
 
-    def __init__(self, ch: tuple[int, int], c2: int):
-        """Initialize SAF.
+    def __init__(self, down_n: int = 2):
+        """Initialize adaptive average pooling by a downsampling factor."""
+        super().__init__()
+        self.down_n = down_n
 
-        Args:
-            ch (tuple[int, int]): Channels for neck and shallow backbone inputs.
-            c2 (int): Output channels.
+    def forward(self, x: torch.Tensor) -> torch.Tensor:
+        """Downsample spatial dimensions by ``down_n`` with adaptive average pooling."""
+        _, _, h, w = x.shape
+        return F.adaptive_avg_pool2d(x, (max(h // self.down_n, 1), max(w // self.down_n, 1)))
+
+
+def _shift_tensor(x: torch.Tensor, dy: int, dx: int) -> torch.Tensor:
+    """Shift a tensor spatially with zero fill instead of circular wraparound."""
+    if dy == 0 and dx == 0:
+        return x
+
+    b, c, h, w = x.shape
+    y = x.new_zeros(b, c, h, w)
+    src_y0 = max(-dy, 0)
+    src_y1 = h - max(dy, 0)
+    src_x0 = max(-dx, 0)
+    src_x1 = w - max(dx, 0)
+    dst_y0 = max(dy, 0)
+    dst_y1 = h - max(-dy, 0)
+    dst_x0 = max(dx, 0)
+    dst_x1 = w - max(-dx, 0)
+    if src_y0 < src_y1 and src_x0 < src_x1:
+        y[:, :, dst_y0:dst_y1, dst_x0:dst_x1] = x[:, :, src_y0:src_y1, src_x0:src_x1]
+    return y
+
+
+def _shift_offsets(kernel_size: int) -> list[tuple[int, int]]:
+    """Build sparse shift offsets that approximate a large receptive field."""
+    radius = max(kernel_size // 2, 1)
+    offsets = [(0, 0), (0, radius), (0, -radius), (radius, 0), (-radius, 0)]
+    if kernel_size >= 7:
+        offsets.extend([(radius, radius), (radius, -radius), (-radius, radius), (-radius, -radius)])
+    if kernel_size >= 9:
+        mid = max(radius // 2, 1)
+        offsets.extend([(0, mid), (0, -mid), (mid, 0), (-mid, 0)])
+    return offsets
+
+
+class ShiftwiseConv(nn.Module):
+    """Dependency-free ShiftwiseConv-style depthwise operator with sparse shifted 3x3 paths."""
+
+    def __init__(self, c: int, kernel_size: int = 5, small_kernel: int = 3):
+        """Initialize shifted depthwise paths for a target large-kernel receptive field."""
+        super().__init__()
+        self.offsets = _shift_offsets(kernel_size)
+        pad = autopad(small_kernel)
+        self.branches = nn.ModuleList(
+            nn.Sequential(
+                nn.Conv2d(c, c, small_kernel, 1, pad, groups=c, bias=False),
+                nn.BatchNorm2d(c),
+            )
+            for _ in self.offsets
+        )
+        self.branch_scale = nn.Parameter(torch.ones(len(self.offsets), 1, 1, 1, 1) / len(self.offsets))
+
+    def forward(self, x: torch.Tensor) -> torch.Tensor:
+        """Apply shifted sparse depthwise paths and sum them."""
+        y = 0
+        scales = self.branch_scale.to(dtype=x.dtype)
+        for i, ((dy, dx), branch) in enumerate(zip(self.offsets, self.branches)):
+            y = y + scales[i] * branch(_shift_tensor(x, dy, dx))
+        return y
+
+
+def _fuse_bn(conv: nn.Conv2d, bn: nn.BatchNorm2d) -> tuple[torch.Tensor, torch.Tensor]:
+    """Fuse convolution and batch norm tensors for large-kernel branch reparameterization."""
+    kernel = conv.weight
+    running_mean = bn.running_mean
+    running_var = bn.running_var
+    gamma = bn.weight
+    beta = bn.bias
+    eps = bn.eps
+    std = (running_var + eps).sqrt()
+    scale = (gamma / std).reshape(-1, 1, 1, 1)
+    return kernel * scale, beta - running_mean * gamma / std
+
+
+def _convert_dilated_to_nondilated(kernel: torch.Tensor, dilate_rate: int) -> torch.Tensor:
+    """Convert a dilated convolution kernel into its equivalent non-dilated kernel."""
+    identity_kernel = torch.ones((1, 1, 1, 1), dtype=kernel.dtype, device=kernel.device)
+    if kernel.size(1) == 1:
+        return F.conv_transpose2d(kernel, identity_kernel, stride=dilate_rate)
+    slices = []
+    for i in range(kernel.size(1)):
+        slices.append(F.conv_transpose2d(kernel[:, i : i + 1, :, :], identity_kernel, stride=dilate_rate))
+    return torch.cat(slices, dim=1)
+
+
+def _merge_dilated_into_large_kernel(
+    large_kernel: torch.Tensor, dilated_kernel: torch.Tensor, dilated_r: int
+) -> torch.Tensor:
+    """Merge a small dilated branch into the large-kernel depthwise branch."""
+    large_k = large_kernel.size(2)
+    dilated_k = dilated_kernel.size(2)
+    equivalent_kernel_size = dilated_r * (dilated_k - 1) + 1
+    equivalent_kernel = _convert_dilated_to_nondilated(dilated_kernel, dilated_r)
+    rows_to_pad = large_k // 2 - equivalent_kernel_size // 2
+    return large_kernel + F.pad(equivalent_kernel, [rows_to_pad] * 4)
+
+
+class DilatedReparamBlock(nn.Module):
+    """UniRepLK-style large depthwise kernel with train-time dilated reparameterization branches."""
+
+    def __init__(self, channels: int, kernel_size: int, deploy: bool = False):
+        """Initialize large-kernel and auxiliary dilated depthwise branches."""
+        super().__init__()
+        self.lk_origin = nn.Conv2d(
+            channels,
+            channels,
+            kernel_size,
+            stride=1,
+            padding=kernel_size // 2,
+            dilation=1,
+            groups=channels,
+            bias=deploy,
+        )
+        if kernel_size == 9:
+            self.kernel_sizes, self.dilates = [7, 5, 3], [1, 1, 1]
+        elif kernel_size == 7:
+            self.kernel_sizes, self.dilates = [5, 3], [1, 1]
+        elif kernel_size == 5:
+            self.kernel_sizes, self.dilates = [3, 1], [1, 1]
+        elif kernel_size == 3:
+            self.kernel_sizes, self.dilates = [3, 1], [1, 1]
+        else:
+            raise ValueError("DilatedReparamBlock supports RepHMS kernel sizes 3, 5, 7, and 9.")
+
+        if not deploy:
+            self.origin_bn = nn.BatchNorm2d(channels)
+            for k, r in zip(self.kernel_sizes, self.dilates):
+                setattr(
+                    self,
+                    f"dil_conv_k{k}_{r}",
+                    nn.Conv2d(
+                        channels,
+                        channels,
+                        k,
+                        stride=1,
+                        padding=(r * (k - 1) + 1) // 2,
+                        dilation=r,
+                        groups=channels,
+                        bias=False,
+                    ),
+                )
+                setattr(self, f"dil_bn_k{k}_{r}", nn.BatchNorm2d(channels))
+
+    def forward(self, x: torch.Tensor) -> torch.Tensor:
+        """Apply the large-kernel branch and train-time auxiliary branches."""
+        if not hasattr(self, "origin_bn"):
+            return self.lk_origin(x)
+        out = self.origin_bn(self.lk_origin(x))
+        for k, r in zip(self.kernel_sizes, self.dilates):
+            conv = getattr(self, f"dil_conv_k{k}_{r}")
+            bn = getattr(self, f"dil_bn_k{k}_{r}")
+            out = out + bn(conv(x))
+        return out
+
+    def merge_dilated_branches(self) -> None:
+        """Fold auxiliary branches into the large-kernel branch for deployment."""
+        if not hasattr(self, "origin_bn"):
+            return
+        origin_k, origin_b = _fuse_bn(self.lk_origin, self.origin_bn)
+        for k, r in zip(self.kernel_sizes, self.dilates):
+            conv = getattr(self, f"dil_conv_k{k}_{r}")
+            bn = getattr(self, f"dil_bn_k{k}_{r}")
+            branch_k, branch_b = _fuse_bn(conv, bn)
+            origin_k = _merge_dilated_into_large_kernel(origin_k, branch_k, r)
+            origin_b += branch_b
+
+        merged_conv = nn.Conv2d(
+            origin_k.size(0),
+            origin_k.size(0),
+            origin_k.size(2),
+            stride=1,
+            padding=origin_k.size(2) // 2,
+            dilation=1,
+            groups=origin_k.size(0),
+            bias=True,
+        )
+        merged_conv.weight.data = origin_k
+        merged_conv.bias.data = origin_b
+        self.lk_origin = merged_conv
+        del self.origin_bn
+        for k, r in zip(self.kernel_sizes, self.dilates):
+            delattr(self, f"dil_conv_k{k}_{r}")
+            delattr(self, f"dil_bn_k{k}_{r}")
+
+
+class UniRepLKNetBlock(nn.Module):
+    """Official MHAF-YOLO large-kernel depthwise block used inside RepHMS."""
+
+    def __init__(self, c: int, kernel_size: int, deploy: bool = False):
+        """Initialize a UniRepLK-style depthwise block."""
+        super().__init__()
+        self.dwconv = DilatedReparamBlock(c, kernel_size, deploy=deploy) if kernel_size else nn.Identity()
+        self.norm = nn.Identity() if deploy or not kernel_size else nn.BatchNorm2d(c)
+
+    def forward(self, x: torch.Tensor) -> torch.Tensor:
+        """Apply large-kernel depthwise convolution followed by batch norm."""
+        return self.norm(self.dwconv(x))
+
+    def reparameterize(self) -> None:
+        """Fold train-time branches and norm into a single deploy convolution when possible."""
+        if hasattr(self.dwconv, "merge_dilated_branches"):
+            self.dwconv.merge_dilated_branches()
+        if hasattr(self.norm, "running_var") and hasattr(self.dwconv, "lk_origin"):
+            std = (self.norm.running_var + self.norm.eps).sqrt()
+            conv = self.dwconv.lk_origin
+            conv.weight.data *= (self.norm.weight / std).view(-1, 1, 1, 1)
+            conv.bias.data = self.norm.bias + (conv.bias - self.norm.running_mean) * self.norm.weight / std
+            self.norm = nn.Identity()
+
+
+class DepthBottleneckUni(nn.Module):
+    """RepHMS bottleneck using official UniRepLK large-kernel depthwise operators."""
+
+    def __init__(
+        self,
+        c1: int,
+        c2: int,
+        shortcut: bool = True,
+        kersize: int = 5,
+        expansion_depth: float = 2,
+        small_kersize: int = 3,
+        use_depthwise: bool = True,
+    ):
+        """Initialize the two-stage RepHMS depth bottleneck."""
+        super().__init__()
+        c_ = int(c1 * expansion_depth)
+        self.cv1 = Conv(c1, c_, 1)
+        if use_depthwise:
+            self.conv2 = UniRepLKNetBlock(c_, kersize)
+            self.cv2 = Conv(c_, c_, 1)
+            self.conv3 = UniRepLKNetBlock(c_, kersize)
+            self.cv3 = Conv(c_, c2, 1)
+        else:
+            self.conv2 = Conv(c_, c_, 3)
+            self.cv2 = Conv(c_, c_, 1)
+            self.conv3 = Conv(c_, c_, 3)
+            self.cv3 = Conv(c_, c2, 1)
+        self.act = nn.SiLU()
+
+    def forward(self, x: torch.Tensor) -> torch.Tensor:
+        """Run the large-kernel RepHMS bottleneck."""
+        y = self.cv1(x)
+        y = self.cv2(self.act(self.conv2(y)))
+        y = self.cv3(self.act(self.conv3(y)))
+        return y
+
+
+class RepHMS(nn.Module):
+    """Reparameterized Heterogeneous Multi-Scale block with official 3/5/7/9 large kernels."""
+
+    def __init__(
+        self,
+        c1: int,
+        c2: int,
+        width: int = 3,
+        depth: int = 1,
+        depth_expansion: float = 2,
+        kersize: int = 5,
+        shortcut: bool = True,
+        expansion: float = 0.5,
+        small_kersize: int = 3,
+        use_depthwise: bool = True,
+    ):
+        """Initialize an MHAF-YOLO RepHMS block.
+
+        Args follow the official RepHMS ordering: width, depth, depth_expansion, kersize, shortcut, expansion,
+        small_kersize, use_depthwise.
         """
         super().__init__()
-        c_neck, c_shallow = ch
-        self.neck_proj = Conv(c_neck, c2, 1)
-        self.shallow_proj = Conv(c_shallow, c2, 1)
-        self.gate = nn.Sequential(nn.Conv2d(c2 * 2, c2, 1, bias=True), nn.Sigmoid())
-        self.out = Conv(c2, c2, 3)
+        self.width = int(width)
+        self.depth = int(depth)
+        c_ = int(c2 * expansion)
+        self.c_ = c_
+        self.cv1 = Conv(c1, c_ * self.width, 1, 1)
+        self.blocks = nn.ModuleList(
+            nn.ModuleList(
+                DepthBottleneckUni(c_, c_, shortcut, kersize, depth_expansion, small_kersize, use_depthwise)
+                for _ in range(self.depth)
+            )
+            for _ in range(self.width - 1)
+        )
+        self.cv2 = Conv(c_ * (1 + (self.width - 1) * self.depth), c2, 1, 1)
+
+    def forward(self, x: torch.Tensor) -> torch.Tensor:
+        """Apply the official RepHMS cascade/ELAN feature aggregation pattern."""
+        x = self.cv1(x)
+        parts = [x[:, i * self.c_ : (i + 1) * self.c_] for i in range(self.width)]
+        if self.width > 1:
+            parts[1] = parts[1] + parts[0]
+
+        cascade = []
+        elan = [parts[0]]
+        for i in range(self.width - 1):
+            for j in range(self.depth):
+                if i > 0:
+                    parts[i + 1] = parts[i + 1] + cascade[j]
+                    if j == self.depth - 1:
+                        cascade = [cascade[-1]] if self.depth > 1 else []
+                parts[i + 1] = self.blocks[i][j](parts[i + 1])
+                elan.append(parts[i + 1])
+                if i < self.width - 2:
+                    cascade.append(parts[i + 1])
+
+        return self.cv2(torch.cat(elan, dim=1))
+
+
+class _MultiResolutionConcat(nn.Module):
+    """Parameter-free multi-resolution alignment and concatenation used by SAF and AAF."""
+
+    def __init__(self):
+        """Initialize a parameter-free connection unit."""
+        super().__init__()
 
     def forward(self, x: list[torch.Tensor]) -> torch.Tensor:
-        """Fuse a neck feature with a resized shallow backbone feature."""
-        neck, shallow = x
-        neck = self.neck_proj(neck)
-        shallow = self.shallow_proj(shallow)
-        if shallow.shape[2:] != neck.shape[2:]:
-            shallow = F.interpolate(shallow, size=neck.shape[2:], mode="nearest")
-        gate = self.gate(torch.cat((neck, shallow), dim=1))
-        return self.out(neck + gate * shallow)
+        """Align all branches to the first branch resolution and concatenate channels."""
+        target_size = x[0].shape[2:]
+        feats = []
+        for feat in x:
+            if feat.shape[2:] != target_size:
+                if feat.shape[2] > target_size[0] or feat.shape[3] > target_size[1]:
+                    feat = F.adaptive_avg_pool2d(feat, target_size)
+                else:
+                    feat = F.interpolate(feat, size=target_size, mode="nearest")
+            feats.append(feat)
+        return torch.cat(feats, dim=1)
+
+
+class SAF(_MultiResolutionConcat):
+    """Shallow Assisted Fusion connection following the MAFPN four-branch topology."""
+
+    def __init__(self):
+        """Initialize SAF as an alias of the shared parameter-free connection."""
+        super().__init__()
+
+
+class AAF(_MultiResolutionConcat):
+    """Advanced Assisted Fusion connection using the same parameter-free topology as SAF."""
+
+    def __init__(self):
+        """Initialize AAF as an alias of the shared parameter-free connection."""
+        super().__init__()
+
+
+def _hamming2d(k: int) -> torch.Tensor:
+    """Create a 2D Hamming window for frequency-mask regularization."""
+    window = torch.hamming_window(k, periodic=False)
+    return torch.outer(window, window)
+
+
+def _normal_init(module: nn.Module, mean: float = 0.0, std: float = 1.0, bias: float = 0.0) -> None:
+    """Initialize module weights with a normal distribution."""
+    if hasattr(module, "weight") and module.weight is not None:
+        nn.init.normal_(module.weight, mean, std)
+    if hasattr(module, "bias") and module.bias is not None:
+        nn.init.constant_(module.bias, bias)
+
+
+def _xavier_init(module: nn.Module, gain: float = 1.0, bias: float = 0.0) -> None:
+    """Initialize module weights with Xavier uniform initialization."""
+    if hasattr(module, "weight") and module.weight is not None:
+        nn.init.xavier_uniform_(module.weight, gain=gain)
+    if hasattr(module, "bias") and module.bias is not None:
+        nn.init.constant_(module.bias, bias)
+
+
+def _carafe(x: torch.Tensor, normed_mask: torch.Tensor, kernel_size: int, group: int = 1, up: int = 1) -> torch.Tensor:
+    """PyTorch CARAFE fallback used by FreqFusion when mmcv is unavailable."""
+    b, c, h, w = x.shape
+    _, _, mask_h, mask_w = normed_mask.shape
+    if mask_h != up * h or mask_w != up * w:
+        raise ValueError(f"CARAFE mask shape {(mask_h, mask_w)} is incompatible with input {(h, w)} and up={up}.")
+    if c % group != 0:
+        raise ValueError(f"CARAFE input channels {c} must be divisible by group={group}.")
+
+    pad = kernel_size // 2
+    pad_x = F.pad(x, pad=[pad] * 4, mode="reflect")
+    unfold_x = F.unfold(pad_x, kernel_size=(kernel_size, kernel_size), stride=1, padding=0)
+    unfold_x = unfold_x.reshape(b, c * kernel_size * kernel_size, h, w)
+    unfold_x = F.interpolate(unfold_x, size=(mask_h, mask_w), mode="nearest")
+    unfold_x = unfold_x.reshape(b, group, c // group, kernel_size * kernel_size, mask_h, mask_w)
+    normed_mask = normed_mask.reshape(b, group, 1, kernel_size * kernel_size, mask_h, mask_w)
+    return (unfold_x * normed_mask).sum(dim=3).reshape(b, c, mask_h, mask_w)
 
 
 class FreqFusion(nn.Module):
-    """Lightweight frequency-aware fusion for high-resolution neck upsampling sites."""
+    """Frequency-aware feature fusion with ALPF/AHPF dynamic masks from FreqFusion."""
 
-    def __init__(self, ch: tuple[int, int], c2: int, k: int = 3):
-        """Initialize FreqFusion.
+    def __init__(
+        self,
+        ch: tuple[int, int],
+        c2: int,
+        lowpass_kernel: int = 5,
+        highpass_kernel: int = 3,
+        up_group: int = 1,
+        encoder_kernel: int = 3,
+        encoder_dilation: int = 1,
+        compressed_channels: int = 64,
+        upsample_mode: str = "nearest",
+        use_high_pass: bool = True,
+        hr_residual: bool = True,
+        hamming_window: bool = True,
+    ):
+        """Initialize FreqFusion for a low-resolution semantic feature and a high-resolution lateral feature.
 
         Args:
-            ch (tuple[int, int]): Channels for low-resolution and lateral high-resolution inputs.
-            c2 (int): Output channels.
-            k (int): Local averaging kernel used to separate low/high-frequency detail.
+            ch (tuple[int, int]): Channels for low-resolution and high-resolution inputs.
+            c2 (int): Output channels for the fused neck tensor.
+            lowpass_kernel (int): Adaptive low-pass filter kernel size.
+            highpass_kernel (int): Adaptive high-pass filter kernel size.
+            up_group (int): CARAFE group count.
+            encoder_kernel (int): Kernel size for mask generators.
+            encoder_dilation (int): Dilation for mask generators.
+            compressed_channels (int): Hidden channels used by the official mask generators.
+            upsample_mode (str): Fallback interpolation mode.
+            use_high_pass (bool): Whether to enhance high-resolution features with AHPF.
+            hr_residual (bool): Whether to add high-pass response back to the high-resolution input.
+            hamming_window (bool): Whether to regularize dynamic masks with a Hamming window.
         """
         super().__init__()
         c_low, c_high = ch
-        self.low_proj = Conv(c_low, c2, 1)
-        self.high_proj = Conv(c_high, c2, 1)
-        self.k = k
-        self.gate = nn.Sequential(nn.Conv2d(c2 * 2, c2, 1, bias=True), nn.Sigmoid())
-        self.out = Conv(c2, c2, 3)
+        self.lowpass_kernel = lowpass_kernel
+        self.highpass_kernel = highpass_kernel
+        self.up_group = up_group
+        self.upsample_mode = upsample_mode
+        self.use_high_pass = use_high_pass
+        self.hr_residual = hr_residual
+        self.hr_channel_compressor = nn.Conv2d(c_high, compressed_channels, 1)
+        self.lr_channel_compressor = nn.Conv2d(c_low, compressed_channels, 1)
+        padding = int((encoder_kernel - 1) * encoder_dilation / 2)
+        self.content_encoder = nn.Conv2d(
+            compressed_channels,
+            lowpass_kernel**2 * up_group,
+            encoder_kernel,
+            padding=padding,
+            dilation=encoder_dilation,
+        )
+        if use_high_pass:
+            self.content_encoder2 = nn.Conv2d(
+                compressed_channels,
+                highpass_kernel**2 * up_group,
+                encoder_kernel,
+                padding=padding,
+                dilation=encoder_dilation,
+            )
+        self.out = Conv(c_high + c_low, c2, 1)
+        lowpass = _hamming2d(lowpass_kernel) if hamming_window else torch.ones(lowpass_kernel, lowpass_kernel)
+        highpass = _hamming2d(highpass_kernel) if hamming_window else torch.ones(highpass_kernel, highpass_kernel)
+        self.register_buffer("hamming_lowpass", lowpass[None, None])
+        self.register_buffer("hamming_highpass", highpass[None, None])
+        self.init_weights()
+
+    def init_weights(self) -> None:
+        """Initialize FreqFusion mask generators following the official implementation."""
+        for module in self.modules():
+            if isinstance(module, nn.Conv2d):
+                _xavier_init(module)
+        _normal_init(self.content_encoder, std=0.001)
+        if self.use_high_pass:
+            _normal_init(self.content_encoder2, std=0.001)
+
+    def kernel_normalizer(self, mask: torch.Tensor, kernel: int, hamming: torch.Tensor) -> torch.Tensor:
+        """Normalize adaptive filter masks over each spatial kernel."""
+        n, mask_c, h, w = mask.size()
+        mask_channel = int(mask_c / float(kernel**2))
+        mask = mask.view(n, mask_channel, -1, h, w)
+        mask = F.softmax(mask, dim=2, dtype=mask.dtype)
+        mask = mask.view(n, mask_channel, kernel, kernel, h, w)
+        mask = mask.permute(0, 1, 4, 5, 2, 3).reshape(n, -1, kernel, kernel)
+        hamming = hamming.to(device=mask.device, dtype=mask.dtype)
+        mask = mask * hamming
+        mask = mask / mask.sum(dim=(-1, -2), keepdim=True).clamp_min(1e-12)
+        mask = mask.view(n, mask_channel, h, w, -1)
+        return mask.permute(0, 1, 4, 2, 3).reshape(n, -1, h, w).contiguous()
 
     def forward(self, x: list[torch.Tensor]) -> torch.Tensor:
-        """Fuse low-resolution semantic features with lateral high-frequency detail."""
-        low, high = x
-        low = F.interpolate(low, size=high.shape[2:], mode="nearest")
-        low = self.low_proj(low)
-        high = self.high_proj(high)
-        pad = self.k // 2
-        low_freq = F.avg_pool2d(low, kernel_size=self.k, stride=1, padding=pad)
-        high_base = F.avg_pool2d(high, kernel_size=self.k, stride=1, padding=pad)
-        high_freq = high - high_base
-        gate = self.gate(torch.cat((low_freq, high_freq), dim=1))
-        return self.out(low_freq + high + gate * high_freq)
+        """Fuse low-resolution semantic and high-resolution lateral features."""
+        lr_feat, hr_feat = x
+        compressed_hr = self.hr_channel_compressor(hr_feat)
+        compressed_lr = self.lr_channel_compressor(lr_feat)
+
+        if self.use_high_pass:
+            mask_hr_hr = self.content_encoder2(compressed_hr)
+            mask_hr_init = self.kernel_normalizer(mask_hr_hr, self.highpass_kernel, self.hamming_highpass)
+            compressed_hr = compressed_hr + compressed_hr - _carafe(
+                compressed_hr, mask_hr_init, self.highpass_kernel, self.up_group, 1
+            )
+
+            mask_lr_hr = self.content_encoder(compressed_hr)
+            mask_lr_init = self.kernel_normalizer(mask_lr_hr, self.lowpass_kernel, self.hamming_lowpass)
+            mask_lr_lr = F.interpolate(
+                _carafe(self.content_encoder(compressed_lr), mask_lr_init, self.lowpass_kernel, self.up_group, 2),
+                size=compressed_hr.shape[-2:],
+                mode="nearest",
+            )
+            mask_lr = mask_lr_hr + mask_lr_lr
+
+            mask_lr_init = self.kernel_normalizer(mask_lr, self.lowpass_kernel, self.hamming_lowpass)
+            mask_hr_lr = F.interpolate(
+                _carafe(self.content_encoder2(compressed_lr), mask_lr_init, self.lowpass_kernel, self.up_group, 2),
+                size=compressed_hr.shape[-2:],
+                mode="nearest",
+            )
+            mask_hr = mask_hr_hr + mask_hr_lr
+        else:
+            mask_lr = self.content_encoder(compressed_hr) + F.interpolate(
+                self.content_encoder(compressed_lr), size=compressed_hr.shape[-2:], mode="nearest"
+            )
+            mask_hr = None
+
+        mask_lr = self.kernel_normalizer(mask_lr, self.lowpass_kernel, self.hamming_lowpass)
+        lr_feat = _carafe(lr_feat, mask_lr, self.lowpass_kernel, self.up_group, 2)
+        if lr_feat.shape[2:] != hr_feat.shape[2:]:
+            lr_feat = F.interpolate(lr_feat, size=hr_feat.shape[2:], mode=self.upsample_mode)
+
+        if self.use_high_pass and mask_hr is not None:
+            mask_hr = self.kernel_normalizer(mask_hr, self.highpass_kernel, self.hamming_highpass)
+            hr_high = hr_feat - _carafe(hr_feat, mask_hr, self.highpass_kernel, self.up_group, 1)
+            hr_feat = hr_feat + hr_high if self.hr_residual else hr_high
+
+        return self.out(torch.cat((hr_feat, lr_feat), dim=1))
 
 
 class C1(nn.Module):
@@ -1196,6 +1672,64 @@ class C3k2(C2f):
             else C3k(self.c, self.c, 2, shortcut, g)
             if c3k
             else Bottleneck(self.c, self.c, shortcut, g)
+            for _ in range(n)
+        )
+
+
+class ShiftBottleneck(nn.Module):
+    """C3k2-compatible bottleneck that keeps a lightweight ShiftwiseConv spatial operator."""
+
+    def __init__(
+        self,
+        c1: int,
+        c2: int,
+        shortcut: bool = True,
+        g: int = 1,
+        e: float = 0.5,
+        shift_kernel: int = 5,
+    ):
+        """Initialize a pointwise-shiftwise-pointwise bottleneck."""
+        super().__init__()
+        c_ = int(c2 * e)
+        self.cv1 = Conv(c1, c_, 1, 1)
+        self.shift = ShiftwiseConv(c_, shift_kernel)
+        self.cv2 = Conv(c_, c2, 1, 1, g=g)
+        self.add = shortcut and c1 == c2
+
+    def forward(self, x: torch.Tensor) -> torch.Tensor:
+        """Apply the shiftwise bottleneck with an optional residual path."""
+        y = self.cv2(self.shift(self.cv1(x)))
+        return x + y if self.add else y
+
+
+class C3k2Shift(C2f):
+    """C3k2-style CSP module with ShiftwiseConv bottlenecks for lower-cost long-range context."""
+
+    def __init__(
+        self,
+        c1: int,
+        c2: int,
+        n: int = 1,
+        c3k: bool = False,
+        e: float = 0.5,
+        attn: bool = False,
+        shift_kernel: int = 5,
+        g: int = 1,
+        shortcut: bool = True,
+    ):
+        """Initialize C3k2Shift with the same public argument pattern as C3k2 plus shift_kernel."""
+        super().__init__(c1, c2, n, shortcut, g, e)
+        self.m = nn.ModuleList(
+            nn.Sequential(
+                ShiftBottleneck(self.c, self.c, shortcut, g, e=1.0, shift_kernel=shift_kernel),
+                ShiftBottleneck(self.c, self.c, shortcut, g, e=1.0, shift_kernel=shift_kernel),
+                PSABlock(self.c, attn_ratio=0.5, num_heads=max(self.c // 64, 1)) if attn else nn.Identity(),
+            )
+            if c3k
+            else nn.Sequential(
+                ShiftBottleneck(self.c, self.c, shortcut, g, e=1.0, shift_kernel=shift_kernel),
+                PSABlock(self.c, attn_ratio=0.5, num_heads=max(self.c // 64, 1)) if attn else nn.Identity(),
+            )
             for _ in range(n)
         )
 
