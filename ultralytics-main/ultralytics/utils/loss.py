@@ -110,15 +110,18 @@ class BboxLoss(nn.Module):
     """Criterion class for computing training losses for bounding boxes."""
 
     def __init__(self, reg_max: int = 16, hyp: Any | None = None):
-        """Initialize the BboxLoss module with WIoU-v3, NWD, RepGT and DFL settings."""
+        """Initialize the BboxLoss module with optional WIoU-v3, NWD, RepGT and DFL settings."""
         super().__init__()
         self.dfl_loss = DFLoss(reg_max) if reg_max > 1 else None
+        self.use_wiou = bool(getattr(hyp, "use_wiou", True))
         self.wiou_alpha = float(getattr(hyp, "wiou_alpha", 1.9))
         self.wiou_delta = float(getattr(hyp, "wiou_delta", 3.0))
         self.wiou_momentum = float(getattr(hyp, "wiou_momentum", 0.01))
+        self.use_nwd = bool(getattr(hyp, "use_nwd", True))
         self.nwd_weight = float(getattr(hyp, "nwd_weight", 0.0))
         self.nwd_small_area = float(getattr(hyp, "nwd_small_area", 32.0 * 32.0))
         self.nwd_constant = float(getattr(hyp, "nwd_constant", 12.8))
+        self.use_repulsion = bool(getattr(hyp, "use_repulsion", True))
         self.repgt_weight = float(getattr(hyp, "repgt_weight", 0.0))
         self.repulsion_sigma = float(getattr(hyp, "repulsion_sigma", 0.5))
         self.register_buffer("wiou_mean", torch.tensor(1.0))
@@ -143,6 +146,12 @@ class BboxLoss(nn.Module):
         focus = beta / (self.wiou_delta * torch.pow(beta.new_tensor(self.wiou_alpha), beta - self.wiou_delta))
         return (loss_iou * distance_gain * focus).unsqueeze(-1), iou
 
+    @staticmethod
+    def ciou_loss(pred_bboxes: torch.Tensor, target_bboxes: torch.Tensor) -> torch.Tensor:
+        """Calculate standard CIoU loss for aligned xyxy boxes."""
+        ciou = bbox_iou(pred_bboxes, target_bboxes, xywh=False, CIoU=True).squeeze(-1)
+        return (1.0 - ciou).unsqueeze(-1)
+
     def nwd_loss(self, pred_bboxes: torch.Tensor, target_bboxes: torch.Tensor) -> torch.Tensor:
         """Calculate normalized Wasserstein distance loss for aligned xyxy boxes."""
         pred_xywh = xyxy2xywh(pred_bboxes)
@@ -164,7 +173,7 @@ class BboxLoss(nn.Module):
         target_scores_sum: torch.Tensor,
     ) -> torch.Tensor:
         """Calculate RepGT repulsion loss against neighboring non-assigned ground-truth boxes."""
-        if self.repgt_weight <= 0 or all_gt_bboxes is None or target_gt_idx is None or mask_gt is None:
+        if not self.use_repulsion or self.repgt_weight <= 0 or all_gt_bboxes is None or target_gt_idx is None or mask_gt is None:
             return pred_bboxes.new_zeros(())
 
         rep_loss = pred_bboxes.new_zeros(())
@@ -217,20 +226,22 @@ class BboxLoss(nn.Module):
         weight = score_weight[fg_mask].unsqueeze(-1)
         pred_fg = pred_bboxes[fg_mask]
         target_fg = target_bboxes[fg_mask]
-        wiou, _ = self.wiou_v3_loss(pred_fg, target_fg)
-        loss_box = wiou
+        if self.use_wiou:
+            loss_box, _ = self.wiou_v3_loss(pred_fg, target_fg)
+        else:
+            loss_box = self.ciou_loss(pred_fg, target_fg)
 
-        stride_fg = stride.view(1, -1, 1).expand(target_bboxes.shape[0], -1, 1)[fg_mask]
-        pred_px = pred_fg * stride_fg
-        target_px = target_fg * stride_fg
-        if self.nwd_weight > 0:
+        if self.use_nwd and self.nwd_weight > 0:
+            stride_fg = stride.view(1, -1, 1).expand(target_bboxes.shape[0], -1, 1)[fg_mask]
+            pred_px = pred_fg * stride_fg
+            target_px = target_fg * stride_fg
             wh_px = (target_px[:, 2:] - target_px[:, :2]).clamp_(0)
             small_mask = (wh_px[:, 0] * wh_px[:, 1] < self.nwd_small_area).unsqueeze(-1)
             if small_mask.any():
                 loss_box = loss_box + self.nwd_weight * self.nwd_loss(pred_px, target_px) * small_mask
 
         loss_iou = (loss_box * weight).sum() / target_scores_sum
-        if self.repgt_weight > 0:
+        if self.use_repulsion and self.repgt_weight > 0:
             stride_full = stride.view(1, -1, 1).expand(pred_bboxes.shape[0], -1, 1)
             loss_repgt = self.repgt_loss(
                 pred_bboxes * stride_full,

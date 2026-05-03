@@ -1,0 +1,57 @@
+- generic [ref=e2]:
+  - navigation [ref=e4]:
+    - button "Skip to main content" [ref=e6] [cursor=pointer]:
+      - generic [ref=e9]: Skip to main content
+    - link "Accessibility help" [ref=e10] [cursor=pointer]:
+      - /url: https://lucid.co/accessibility
+      - generic [ref=e11]:
+        - generic [ref=e14]: Accessibility help
+        - img [ref=e17]
+  - generic [ref=e21]:
+    - banner [ref=e22]:
+      - generic [ref=e25]:
+        - link "Lucid app home" [ref=e28] [cursor=pointer]:
+          - /url: "#/home?folder_id=recent"
+          - generic [ref=e30]:
+            - img [ref=e33]
+            - img [ref=e36]
+        - generic [ref=e41]:
+          - button "Execute search" [ref=e42] [cursor=pointer]:
+            - img [ref=e44]
+          - textbox "Search by title or content" [ref=e46]
+          - button "Advanced search options" [ref=e47] [cursor=pointer]:
+            - img [ref=e49]
+        - generic [ref=e53]:
+          - button "Support" [ref=e56] [cursor=pointer]:
+            - img [ref=e58]
+          - button "Toggle notifications" [ref=e65] [cursor=pointer]:
+            - img [ref=e67]
+          - button "Account settings" [ref=e73] [cursor=pointer]:
+            - generic [ref=e78]: L
+    - generic [ref=e79]:
+      - navigation "Document and Teams" [ref=e81]:
+        - button "Templates" [ref=e96]:
+          - generic [ref=e97]:
+            - img [ref=e99]
+            - generic [ref=e103]: Templates
+        - link "Integrations" [ref=e106] [cursor=pointer]:
+          - /url: "#/integrations-marketplace"
+          - generic [ref=e108]:
+            - img [ref=e110]
+            - generic [ref=e114]: Integrations
+      - generic [ref=e132]:
+        - generic [ref=e139]:
+          - heading "Jump into something new" [level=3] [ref=e142]
+          - img [ref=e146]
+        - generic [ref=e151]:
+          - heading "Recent documents" [level=1] [ref=e156]:
+            - button "Recent documents" [ref=e160] [cursor=pointer]
+          - generic [ref=e161]:
+            - generic [ref=e163]:
+              - button "List view" [ref=e165] [cursor=pointer]:
+                - img [ref=e167]
+              - button "Grid view" [pressed] [ref=e170] [cursor=pointer]:
+                - img [ref=e172]
+            - button "Details" [ref=e175] [cursor=pointer]:
+              - img [ref=e177]
+  - note "Status messages for dynamic page updates" [ref=e188]

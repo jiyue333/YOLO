@@ -1,0 +1,216 @@
+- generic [ref=e2]:
+  - navigation [ref=e4]:
+    - button "Skip to main content" [ref=e6] [cursor=pointer]:
+      - generic [ref=e9]: Skip to main content
+    - link "Accessibility help" [ref=e10] [cursor=pointer]:
+      - /url: https://lucid.co/accessibility
+      - generic [ref=e11]:
+        - generic [ref=e14]: Accessibility help
+        - img [ref=e17]
+  - generic [ref=e21]:
+    - banner [ref=e22]:
+      - generic [ref=e25]:
+        - link "Lucid app home" [ref=e28] [cursor=pointer]:
+          - /url: "#/home?folder_id=recent"
+          - generic [ref=e30]:
+            - img [ref=e33]
+            - img [ref=e36]
+        - generic [ref=e41]:
+          - button "Execute search" [ref=e42] [cursor=pointer]:
+            - img [ref=e44]
+          - textbox "Search by title or content" [ref=e46]
+          - button "Advanced search options" [ref=e47] [cursor=pointer]:
+            - img [ref=e49]
+        - generic [ref=e53]:
+          - button "Support" [ref=e56] [cursor=pointer]:
+            - img [ref=e58]
+          - button "Toggle notifications" [ref=e65] [cursor=pointer]:
+            - img [ref=e67]
+          - button "Team trial" [ref=e194] [cursor=pointer]:
+            - generic [ref=e195]:
+              - generic [ref=e196]: Team trial
+              - img [ref=e198]
+          - button "Account settings" [ref=e73] [cursor=pointer]:
+            - generic [ref=e78]: L
+          - link "Upgrade" [ref=e203] [cursor=pointer]:
+            - /url: /user?method=upgradeDocsList#subscriptionLevel/all
+            - generic [ref=e205]: Upgrade
+            - img [ref=e207]
+    - generic [ref=e79]:
+      - navigation "Document and Teams" [ref=e81]:
+        - generic [ref=e82]:
+          - button "Switch to team or accelerator" [ref=e210]:
+            - generic [ref=e211]:
+              - generic [ref=e216]: L
+              - generic [ref=e217]:
+                - heading "luc04221702" [level=4] [ref=e219]
+                - generic [ref=e220]: Personal
+              - img [ref=e223]
+          - button "New" [ref=e229]:
+            - generic [ref=e230] [cursor=pointer]:
+              - img [ref=e232]
+              - generic [ref=e234]: New
+          - link "Home" [ref=e237] [cursor=pointer]:
+            - /url: "#/home?folder_id=recent"
+            - generic [ref=e239]:
+              - img [ref=e241]
+              - generic [ref=e245]: Home
+          - link "Documents" [ref=e248] [cursor=pointer]:
+            - /url: "#/documents?folder_id=recent"
+            - generic [ref=e250]:
+              - img [ref=e252]
+              - generic [ref=e256]: Documents
+        - button "Templates" [ref=e96]:
+          - generic [ref=e97]:
+            - img [ref=e99]
+            - generic [ref=e103]: Templates
+        - link "Integrations" [ref=e106] [cursor=pointer]:
+          - /url: "#/integrations-marketplace"
+          - generic [ref=e108]:
+            - img [ref=e110]
+            - generic [ref=e114]: Integrations
+        - link "Developer" [ref=e259] [cursor=pointer]:
+          - /url: https://lucid.app/developer
+          - generic [ref=e262]:
+            - img [ref=e264]
+            - generic [ref=e267]:
+              - generic [ref=e268]: Developer
+              - img [ref=e272]
+        - link "Admin" [ref=e277] [cursor=pointer]:
+          - /url: https://admin.lucid.app/teams
+          - generic [ref=e280]:
+            - img [ref=e282]
+            - generic [ref=e286]:
+              - generic [ref=e287]: Admin
+              - img [ref=e291]
+      - generic [ref=e132]:
+        - generic [ref=e134]:
+          - generic "Template use case tabs" [ref=e294]:
+            - navigation [ref=e295]:
+              - tablist [ref=e298]:
+                - tab "For you" [ref=e299] [cursor=pointer]:
+                  - generic [ref=e301]: For you
+                - tab "AI initiatives" [ref=e302] [cursor=pointer]:
+                  - generic [ref=e304]: AI initiatives
+                - tab "Agile" [ref=e305] [cursor=pointer]:
+                  - generic [ref=e307]: Agile
+                - tab "Processes" [ref=e308] [cursor=pointer]:
+                  - generic [ref=e310]: Processes
+                - tab "Brainstorming" [ref=e311] [cursor=pointer]:
+                  - generic [ref=e313]: Brainstorming
+                - tab "Systems" [ref=e314] [cursor=pointer]:
+                  - generic [ref=e316]: Systems
+          - generic [ref=e320]:
+            - button "Close Marketing Banner" [ref=e322] [cursor=pointer]:
+              - img [ref=e324]
+            - generic [ref=e327]:
+              - generic [ref=e330]: New product
+              - generic [ref=e333]:
+                - generic [ref=e335]: Introducing Lucidspark!
+                - generic [ref=e337]: A virtual whiteboard for brainstorming and ideation
+              - generic [ref=e338]:
+                - img [ref=e340]
+                - generic [ref=e342]: Easily add your thoughts with sticky notes and freehand drawing.
+              - generic [ref=e343]:
+                - img [ref=e345]
+                - generic [ref=e347]: Surface the best ideas with real-time collaboration and voting.
+              - generic [ref=e348]:
+                - img [ref=e350]
+                - generic [ref=e352]: Take action on your ideas by exporting them to Lucidchart.
+            - generic [ref=e354]:
+              - button "Learn more" [ref=e356] [cursor=pointer]:
+                - generic [ref=e357]: Learn more
+              - button "Try now" [ref=e359] [cursor=pointer]:
+                - generic [ref=e360]: Try now
+        - generic [ref=e149]:
+          - generic [ref=e151]:
+            - heading "Recent documents" [level=1] [ref=e156]:
+              - button "Recent documents" [ref=e160] [cursor=pointer]
+            - generic [ref=e161]:
+              - generic [ref=e163]:
+                - button "List view" [ref=e165] [cursor=pointer]:
+                  - img [ref=e167]
+                - button "Grid view" [pressed] [ref=e170] [cursor=pointer]:
+                  - img [ref=e172]
+              - button "Details" [ref=e175] [cursor=pointer]:
+                - img [ref=e177]
+          - grid [ref=e363]:
+            - row "MHAF-YOLO + YOLO26 Components Add to starred Open Copy share link Sharing options More options Lucidchart" [ref=e595]:
+              - gridcell "MHAF-YOLO + YOLO26 Components Add to starred Open Copy share link Sharing options More options" [active] [ref=e596]:
+                - generic [ref=e366]:
+                  - heading "MHAF-YOLO + YOLO26 Components Add to starred" [level=4] [ref=e597]:
+                    - generic [ref=e372]:
+                      - img [ref=e374]
+                      - generic [ref=e384]: MHAF-YOLO + YOLO26 Components
+                      - button "Add to starred" [ref=e602] [cursor=pointer]:
+                        - img [ref=e604]
+                  - generic [ref=e388]:
+                    - generic [ref=e608]:
+                      - button "Open" [ref=e610] [cursor=pointer]
+                      - generic [ref=e613]:
+                        - button "Copy share link" [ref=e616] [cursor=pointer]:
+                          - img [ref=e618]
+                        - button "Sharing options" [ref=e623] [cursor=pointer]:
+                          - img [ref=e625]
+                        - button "More options" [ref=e629] [cursor=pointer]:
+                          - img [ref=e631]
+                    - combobox [ref=e394] [cursor=pointer]:
+                      - img [ref=e396]
+                      - generic [ref=e399]: Draft
+              - generic [ref=e401]: Lucidchart
+            - row "MHAF-YOLO Lucidchart" [ref=e402]:
+              - gridcell "MHAF-YOLO" [ref=e403]:
+                - generic [ref=e404]:
+                  - heading "MHAF-YOLO" [level=4] [ref=e409]:
+                    - generic [ref=e410]:
+                      - img [ref=e412]
+                      - generic [ref=e422]: MHAF-YOLO
+                  - combobox [ref=e432] [cursor=pointer]:
+                    - img [ref=e434]
+                    - generic [ref=e437]: Draft
+              - generic [ref=e439]: Lucidchart
+            - row "Blank diagram Lucidchart" [ref=e440]:
+              - gridcell "Blank diagram" [ref=e441]:
+                - generic [ref=e442]:
+                  - heading "Blank diagram" [level=4] [ref=e447]:
+                    - generic [ref=e448]:
+                      - img [ref=e450]
+                      - generic [ref=e460]: Blank diagram
+                  - combobox [ref=e470] [cursor=pointer]:
+                    - img [ref=e472]
+                    - generic [ref=e475]: Draft
+              - generic [ref=e477]: Lucidchart
+            - row "YOLO26-small-no-shiftwise Architecture Lucidchart" [ref=e478]:
+              - gridcell "YOLO26-small-no-shiftwise Architecture" [ref=e479]:
+                - generic [ref=e480]:
+                  - heading "YOLO26-small-no-shiftwise Architecture" [level=4] [ref=e485]:
+                    - generic [ref=e486]:
+                      - img [ref=e488]
+                      - generic [ref=e498]: YOLO26-small-no-shiftwise Architecture
+                  - combobox [ref=e508] [cursor=pointer]:
+                    - img [ref=e510]
+                    - generic [ref=e513]: Draft
+              - generic [ref=e515]: Lucidchart
+            - row "YOLO26 Lucidchart" [ref=e516]:
+              - gridcell "YOLO26" [ref=e517]:
+                - generic [ref=e518]:
+                  - heading "YOLO26" [level=4] [ref=e523]:
+                    - generic [ref=e524]:
+                      - img [ref=e526]
+                      - generic [ref=e536]: YOLO26
+                  - combobox [disabled] [ref=e546]:
+                    - img [ref=e548]
+                    - generic [ref=e551]: Draft
+              - generic [ref=e553]: Lucidchart
+            - row "Blank diagram Lucidchart" [ref=e554]:
+              - gridcell "Blank diagram" [ref=e555]:
+                - generic [ref=e556]:
+                  - heading "Blank diagram" [level=4] [ref=e561]:
+                    - generic [ref=e562]:
+                      - img [ref=e564]
+                      - generic [ref=e574]: Blank diagram
+                  - combobox [ref=e584] [cursor=pointer]:
+                    - img [ref=e586]
+                    - generic [ref=e589]: Draft
+              - generic [ref=e591]: Lucidchart
+  - note "Status messages for dynamic page updates" [ref=e188]

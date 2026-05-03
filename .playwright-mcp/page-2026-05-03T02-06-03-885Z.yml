@@ -1,0 +1,75 @@
+- generic [ref=e3]:
+  - main [ref=e5]:
+    - generic [ref=e6]:
+      - generic [ref=e8]:
+        - link "Lucid - home" [ref=e10] [cursor=pointer]:
+          - /url: http://lucid.co
+          - img "Lucid - home" [ref=e14]
+        - generic [ref=e15]:
+          - navigation:
+            - generic:
+              - heading [level=3]
+          - button "Enter Join ID" [ref=e17] [cursor=pointer]:
+            - img [ref=e19]
+            - generic [ref=e23]: Enter Join ID
+      - generic [ref=e24]:
+        - generic:
+          - heading [level=1]
+        - heading "Log in to access the Lucid Visual Collaboration Suite" [level=1] [ref=e29]
+    - generic [ref=e33]:
+      - generic [ref=e35]:
+        - generic [ref=e39]:
+          - textbox "Email or username" [active] [ref=e41]
+          - generic: Email or username
+        - generic [ref=e42]:
+          - generic [ref=e45] [cursor=pointer]:
+            - generic [ref=e46]:
+              - img [ref=e47]
+              - img [ref=e49]
+              - checkbox "Remember me" [checked] [ref=e51]
+            - generic [ref=e52]: Remember me
+          - button "Log in with password" [ref=e54] [cursor=pointer]:
+            - generic [ref=e55]: Log in with password
+        - button "Next" [ref=e58] [cursor=pointer]:
+          - generic [ref=e59]: Next
+        - generic [ref=e63]: or
+        - generic [ref=e65]:
+          - button "Sign up with Google" [ref=e67] [cursor=pointer]:
+            - generic [ref=e68]:
+              - img [ref=e70]
+              - generic [ref=e75]: Log in with Google
+          - button "Sign up with Microsoft" [ref=e77] [cursor=pointer]:
+            - generic [ref=e78]:
+              - img [ref=e80]
+              - generic [ref=e85]: Log in with Microsoft
+          - button "Sign up with Slack" [ref=e87] [cursor=pointer]:
+            - generic [ref=e88]:
+              - img [ref=e90]
+              - generic [ref=e95]: Log in with Slack
+          - button "Log in with SSO" [ref=e97] [cursor=pointer]:
+            - generic [ref=e98]:
+              - img [ref=e100]
+              - generic [ref=e103]: Log in with SSO
+        - generic [ref=e104]:
+          - text: Don't have an account? Sign up for
+          - link "Lucidchart" [ref=e106] [cursor=pointer]:
+            - /url: /pricing/lucidchart
+            - generic [ref=e107]: Lucidchart
+          - text: or
+          - link "Lucidspark" [ref=e109] [cursor=pointer]:
+            - /url: /pricing/lucidspark
+            - generic [ref=e110]: Lucidspark
+          - text: .
+      - generic [ref=e115]:
+        - term [ref=e116]:
+          - heading "Share your work via Lucid to enjoy:" [level=3] [ref=e118]
+        - definition [ref=e119]:
+          - img [ref=e121]
+          - generic [ref=e124]: Real-time collaboration
+        - definition [ref=e125]:
+          - img [ref=e127]
+          - generic [ref=e130]: Commenting capability
+        - definition [ref=e131]:
+          - img [ref=e133]
+          - generic [ref=e136]: Permission control
+  - note "Status messages for dynamic page updates" [ref=e137]

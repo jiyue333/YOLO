@@ -1,0 +1,957 @@
+{
+  "version": 1,
+  "pages": [
+    {
+      "id": "page1",
+      "title": "MHAF-YOLO + YOLO26 Components",
+      "shapes": [
+        {
+          "id": "title",
+          "type": "text",
+          "boundingBox": { "x": 60, "y": 30, "w": 920, "h": 40 },
+          "text": "MHAF-YOLO + YOLO26-small-no-shiftwise 组件提取"
+        },
+        {
+          "id": "note",
+          "type": "rectangle",
+          "boundingBox": { "x": 60, "y": 78, "w": 1260, "h": 48 },
+          "text": "只画组件、标签与颜色；不画网络连接关系。新增区来自 ultralytics/cfg/models/26/yolo26-small-no-shiftwise.yaml。",
+          "style": {
+            "fill": { "type": "color", "color": "#F6F6F6" },
+            "stroke": { "color": "#D8D8D8", "width": 1, "style": "solid" },
+            "textColor": "#333333"
+          }
+        },
+        {
+          "id": "base-title",
+          "type": "text",
+          "boundingBox": { "x": 60, "y": 150, "w": 760, "h": 30 },
+          "text": "A. MHAF-YOLO 基础组件"
+        },
+        {
+          "id": "bg-backbone",
+          "type": "rectangle",
+          "boundingBox": { "x": 60, "y": 195, "w": 210, "h": 82 },
+          "text": "Backbone 背景\n#FFF8E7",
+          "style": {
+            "fill": { "type": "color", "color": "#FFF8E7" },
+            "stroke": { "color": "#E5DCC8", "width": 1, "style": "solid" },
+            "textColor": "#111111"
+          }
+        },
+        {
+          "id": "bg-mafpn",
+          "type": "rectangle",
+          "boundingBox": { "x": 300, "y": 195, "w": 240, "h": 82 },
+          "text": "MAFPN 背景\n#E9ECF7",
+          "style": {
+            "fill": { "type": "color", "color": "#E9ECF7" },
+            "stroke": { "color": "#D3D9EA", "width": 1, "style": "solid" },
+            "textColor": "#111111"
+          }
+        },
+        {
+          "id": "bg-head",
+          "type": "rectangle",
+          "boundingBox": { "x": 570, "y": 195, "w": 210, "h": 82 },
+          "text": "Head 背景\n#ECECEC",
+          "style": {
+            "fill": { "type": "color", "color": "#ECECEC" },
+            "stroke": { "color": "#D7D7D7", "width": 1, "style": "solid" },
+            "textColor": "#111111"
+          }
+        },
+        {
+          "id": "input-label",
+          "type": "rectangle",
+          "boundingBox": { "x": 815, "y": 195, "w": 110, "h": 38 },
+          "text": "Input",
+          "style": {
+            "fill": { "type": "color", "color": "#FFFFFF" },
+            "stroke": { "color": "#FFFFFF", "width": 1, "style": "solid" },
+            "textColor": "#111111"
+          }
+        },
+        {
+          "id": "p2-base",
+          "type": "rectangle",
+          "boundingBox": { "x": 945, "y": 195, "w": 78, "h": 38 },
+          "text": "P2",
+          "style": {
+            "fill": { "type": "color", "color": "#FFF8E7" },
+            "stroke": { "color": "#E5DCC8", "width": 1, "style": "solid" },
+            "textColor": "#111111"
+          }
+        },
+        {
+          "id": "p3-base",
+          "type": "rectangle",
+          "boundingBox": { "x": 1036, "y": 195, "w": 78, "h": 38 },
+          "text": "P3",
+          "style": {
+            "fill": { "type": "color", "color": "#FFF8E7" },
+            "stroke": { "color": "#E5DCC8", "width": 1, "style": "solid" },
+            "textColor": "#111111"
+          }
+        },
+        {
+          "id": "p4-base",
+          "type": "rectangle",
+          "boundingBox": { "x": 1127, "y": 195, "w": 78, "h": 38 },
+          "text": "P4",
+          "style": {
+            "fill": { "type": "color", "color": "#FFF8E7" },
+            "stroke": { "color": "#E5DCC8", "width": 1, "style": "solid" },
+            "textColor": "#111111"
+          }
+        },
+        {
+          "id": "p5-base",
+          "type": "rectangle",
+          "boundingBox": { "x": 1218, "y": 195, "w": 78, "h": 38 },
+          "text": "P5",
+          "style": {
+            "fill": { "type": "color", "color": "#FFF8E7" },
+            "stroke": { "color": "#E5DCC8", "width": 1, "style": "solid" },
+            "textColor": "#111111"
+          }
+        },
+        {
+          "id": "blocks-title",
+          "type": "text",
+          "boundingBox": { "x": 60, "y": 315, "w": 460, "h": 28 },
+          "text": "模块块 / Blocks"
+        },
+        {
+          "id": "rep3",
+          "type": "rectangle",
+          "boundingBox": { "x": 60, "y": 355, "w": 150, "h": 80 },
+          "text": "RepHMS\n3 x 3",
+          "style": {
+            "fill": { "type": "color", "color": "#F7F2E7" },
+            "stroke": { "color": "#8A8A8A", "width": 2, "style": "solid" },
+            "textColor": "#111111"
+          }
+        },
+        {
+          "id": "rep5",
+          "type": "rectangle",
+          "boundingBox": { "x": 240, "y": 355, "w": 150, "h": 80 },
+          "text": "RepHMS\n5 x 5",
+          "style": {
+            "fill": { "type": "color", "color": "#F7F2E7" },
+            "stroke": { "color": "#8A8A8A", "width": 2, "style": "solid" },
+            "textColor": "#111111"
+          }
+        },
+        {
+          "id": "rep7",
+          "type": "rectangle",
+          "boundingBox": { "x": 420, "y": 355, "w": 150, "h": 80 },
+          "text": "RepHMS\n7 x 7",
+          "style": {
+            "fill": { "type": "color", "color": "#F7F2E7" },
+            "stroke": { "color": "#8A8A8A", "width": 2, "style": "solid" },
+            "textColor": "#111111"
+          }
+        },
+        {
+          "id": "rep9",
+          "type": "rectangle",
+          "boundingBox": { "x": 600, "y": 355, "w": 150, "h": 80 },
+          "text": "RepHMS\n9 x 9",
+          "style": {
+            "fill": { "type": "color", "color": "#F7F2E7" },
+            "stroke": { "color": "#8A8A8A", "width": 2, "style": "solid" },
+            "textColor": "#111111"
+          }
+        },
+        {
+          "id": "saf",
+          "type": "rectangle",
+          "boundingBox": { "x": 60, "y": 470, "w": 140, "h": 64 },
+          "text": "SAF\n#CFE5B9",
+          "style": {
+            "fill": { "type": "color", "color": "#CFE5B9" },
+            "stroke": { "color": "#7F8D78", "width": 2, "style": "solid" },
+            "textColor": "#111111"
+          }
+        },
+        {
+          "id": "aaf",
+          "type": "rectangle",
+          "boundingBox": { "x": 235, "y": 470, "w": 140, "h": 64 },
+          "text": "AAF\n#CFE5B9",
+          "style": {
+            "fill": { "type": "color", "color": "#CFE5B9" },
+            "stroke": { "color": "#7F8D78", "width": 2, "style": "solid" },
+            "textColor": "#111111"
+          }
+        },
+        {
+          "id": "text-labels",
+          "type": "rectangle",
+          "boundingBox": { "x": 410, "y": 470, "w": 340, "h": 64 },
+          "text": "文字标签：Input / P2-P5 / MHAF-YOLO / Backbone / MAFPN / Head / ...",
+          "style": {
+            "fill": { "type": "color", "color": "#FFFFFF" },
+            "stroke": { "color": "#D1D1D1", "width": 1, "style": "solid" },
+            "textColor": "#111111"
+          }
+        },
+        {
+          "id": "feature-title",
+          "type": "text",
+          "boundingBox": { "x": 60, "y": 570, "w": 480, "h": 28 },
+          "text": "多色特征图堆叠 / Feature-map stacks"
+        },
+        {
+          "id": "stack1a",
+          "type": "rectangle",
+          "boundingBox": { "x": 75, "y": 625, "w": 46, "h": 112 },
+          "text": "",
+          "style": {
+            "fill": { "type": "color", "color": "#B9DDEE" },
+            "stroke": { "color": "#B9DDEE", "width": 1, "style": "solid" }
+          }
+        },
+        {
+          "id": "stack1b",
+          "type": "rectangle",
+          "boundingBox": { "x": 98, "y": 615, "w": 46, "h": 112 },
+          "text": "",
+          "style": {
+            "fill": { "type": "color", "color": "#B8D7A5" },
+            "stroke": { "color": "#B8D7A5", "width": 1, "style": "solid" }
+          }
+        },
+        {
+          "id": "stack1c",
+          "type": "rectangle",
+          "boundingBox": { "x": 121, "y": 610, "w": 46, "h": 112 },
+          "text": "",
+          "style": {
+            "fill": { "type": "color", "color": "#EFC0BC" },
+            "stroke": { "color": "#EFC0BC", "width": 1, "style": "solid" }
+          }
+        },
+        {
+          "id": "stack1d",
+          "type": "rectangle",
+          "boundingBox": { "x": 144, "y": 608, "w": 46, "h": 112 },
+          "text": "",
+          "style": {
+            "fill": { "type": "color", "color": "#E99A94" },
+            "stroke": { "color": "#E99A94", "width": 1, "style": "solid" }
+          }
+        },
+        {
+          "id": "stack1e",
+          "type": "rectangle",
+          "boundingBox": { "x": 167, "y": 603, "w": 46, "h": 112 },
+          "text": "",
+          "style": {
+            "fill": { "type": "color", "color": "#B86A61" },
+            "stroke": { "color": "#B86A61", "width": 1, "style": "solid" }
+          }
+        },
+        {
+          "id": "stack1-label",
+          "type": "rectangle",
+          "boundingBox": { "x": 60, "y": 755, "w": 190, "h": 52 },
+          "text": "全通道堆叠\nblue/green/pink/red",
+          "style": {
+            "fill": { "type": "color", "color": "#FFFFFF" },
+            "stroke": { "color": "#D1D1D1", "width": 1, "style": "solid" },
+            "textColor": "#111111"
+          }
+        },
+        {
+          "id": "stack2a",
+          "type": "rectangle",
+          "boundingBox": { "x": 315, "y": 635, "w": 44, "h": 95 },
+          "text": "",
+          "style": {
+            "fill": { "type": "color", "color": "#B9DDEE" },
+            "stroke": { "color": "#B9DDEE", "width": 1, "style": "solid" }
+          }
+        },
+        {
+          "id": "stack2b",
+          "type": "rectangle",
+          "boundingBox": { "x": 337, "y": 625, "w": 44, "h": 95 },
+          "text": "",
+          "style": {
+            "fill": { "type": "color", "color": "#B8D7A5" },
+            "stroke": { "color": "#B8D7A5", "width": 1, "style": "solid" }
+          }
+        },
+        {
+          "id": "stack2c",
+          "type": "rectangle",
+          "boundingBox": { "x": 359, "y": 620, "w": 44, "h": 95 },
+          "text": "",
+          "style": {
+            "fill": { "type": "color", "color": "#EFC0BC" },
+            "stroke": { "color": "#EFC0BC", "width": 1, "style": "solid" }
+          }
+        },
+        {
+          "id": "stack2d",
+          "type": "rectangle",
+          "boundingBox": { "x": 381, "y": 618, "w": 44, "h": 95 },
+          "text": "",
+          "style": {
+            "fill": { "type": "color", "color": "#E99A94" },
+            "stroke": { "color": "#E99A94", "width": 1, "style": "solid" }
+          }
+        },
+        {
+          "id": "stack2e",
+          "type": "rectangle",
+          "boundingBox": { "x": 403, "y": 613, "w": 44, "h": 95 },
+          "text": "",
+          "style": {
+            "fill": { "type": "color", "color": "#B86A61" },
+            "stroke": { "color": "#B86A61", "width": 1, "style": "solid" }
+          }
+        },
+        {
+          "id": "stack2-label",
+          "type": "rectangle",
+          "boundingBox": { "x": 300, "y": 755, "w": 180, "h": 52 },
+          "text": "中等尺寸堆叠\n同色系",
+          "style": {
+            "fill": { "type": "color", "color": "#FFFFFF" },
+            "stroke": { "color": "#D1D1D1", "width": 1, "style": "solid" },
+            "textColor": "#111111"
+          }
+        },
+        {
+          "id": "stack3a",
+          "type": "rectangle",
+          "boundingBox": { "x": 555, "y": 655, "w": 38, "h": 78 },
+          "text": "",
+          "style": {
+            "fill": { "type": "color", "color": "#B9DDEE" },
+            "stroke": { "color": "#B9DDEE", "width": 1, "style": "solid" }
+          }
+        },
+        {
+          "id": "stack3b",
+          "type": "rectangle",
+          "boundingBox": { "x": 577, "y": 642, "w": 38, "h": 78 },
+          "text": "",
+          "style": {
+            "fill": { "type": "color", "color": "#B8D7A5" },
+            "stroke": { "color": "#B8D7A5", "width": 1, "style": "solid" }
+          }
+        },
+        {
+          "id": "stack3c",
+          "type": "rectangle",
+          "boundingBox": { "x": 599, "y": 637, "w": 38, "h": 78 },
+          "text": "",
+          "style": {
+            "fill": { "type": "color", "color": "#8DAE7A" },
+            "stroke": { "color": "#8DAE7A", "width": 1, "style": "solid" }
+          }
+        },
+        {
+          "id": "stack3-label",
+          "type": "rectangle",
+          "boundingBox": { "x": 535, "y": 755, "w": 165, "h": 52 },
+          "text": "蓝绿缩减堆叠\n#B9DDEE / #8DAE7A",
+          "style": {
+            "fill": { "type": "color", "color": "#FFFFFF" },
+            "stroke": { "color": "#D1D1D1", "width": 1, "style": "solid" },
+            "textColor": "#111111"
+          }
+        },
+        {
+          "id": "head-title",
+          "type": "text",
+          "boundingBox": { "x": 860, "y": 315, "w": 360, "h": 28 },
+          "text": "Head / Loss 组件"
+        },
+        {
+          "id": "head-shadow",
+          "type": "rectangle",
+          "boundingBox": { "x": 875, "y": 365, "w": 54, "h": 120 },
+          "text": "",
+          "style": {
+            "fill": { "type": "color", "color": "#A49DBA" },
+            "stroke": { "color": "#A49DBA", "width": 1, "style": "solid" }
+          }
+        },
+        {
+          "id": "head-slab",
+          "type": "rectangle",
+          "boundingBox": { "x": 900, "y": 345, "w": 70, "h": 160 },
+          "text": "",
+          "style": {
+            "fill": { "type": "color", "color": "#837C9D" },
+            "stroke": { "color": "#837C9D", "width": 1, "style": "solid" }
+          }
+        },
+        {
+          "id": "head-slab-label",
+          "type": "rectangle",
+          "boundingBox": { "x": 1010, "y": 400, "w": 190, "h": 52 },
+          "text": "紫色 Head 特征块\n#837C9D",
+          "style": {
+            "fill": { "type": "color", "color": "#FFFFFF" },
+            "stroke": { "color": "#D1D1D1", "width": 1, "style": "solid" },
+            "textColor": "#111111"
+          }
+        },
+        {
+          "id": "one-many",
+          "type": "rectangle",
+          "boundingBox": { "x": 860, "y": 545, "w": 230, "h": 44 },
+          "text": "one-to-many Head",
+          "style": {
+            "fill": { "type": "color", "color": "#D7C6E3" },
+            "stroke": { "color": "#C7B7D5", "width": 1, "style": "solid" },
+            "textColor": "#111111"
+          }
+        },
+        {
+          "id": "one-one",
+          "type": "rectangle",
+          "boundingBox": { "x": 860, "y": 605, "w": 230, "h": 44 },
+          "text": "one-to-one Head",
+          "style": {
+            "fill": { "type": "color", "color": "#D7C6E3" },
+            "stroke": { "color": "#C7B7D5", "width": 1, "style": "solid" },
+            "textColor": "#111111"
+          }
+        },
+        {
+          "id": "loss1",
+          "type": "rectangle",
+          "boundingBox": { "x": 1130, "y": 535, "w": 150, "h": 44 },
+          "text": "o2m loss",
+          "style": {
+            "fill": { "type": "color", "color": "#BFBFBF" },
+            "stroke": { "color": "#BFBFBF", "width": 1, "style": "solid" },
+            "textColor": "#111111"
+          }
+        },
+        {
+          "id": "loss2",
+          "type": "rectangle",
+          "boundingBox": { "x": 1130, "y": 685, "w": 150, "h": 44 },
+          "text": "o2o loss",
+          "style": {
+            "fill": { "type": "color", "color": "#BFBFBF" },
+            "stroke": { "color": "#BFBFBF", "width": 1, "style": "solid" },
+            "textColor": "#111111"
+          }
+        },
+        {
+          "id": "ellipsis",
+          "type": "text",
+          "boundingBox": { "x": 1165, "y": 612, "w": 80, "h": 40 },
+          "text": "..."
+        },
+        {
+          "id": "legend-title",
+          "type": "text",
+          "boundingBox": { "x": 860, "y": 760, "w": 360, "h": 28 },
+          "text": "图例箭头颜色 / Legend colors"
+        },
+        {
+          "id": "legend-up-label",
+          "type": "rectangle",
+          "boundingBox": { "x": 980, "y": 800, "w": 230, "h": 32 },
+          "text": "upsample  #D11F1F",
+          "style": {
+            "fill": { "type": "color", "color": "#FFFFFF" },
+            "stroke": { "color": "#FFFFFF", "width": 1, "style": "solid" },
+            "textColor": "#111111"
+          }
+        },
+        {
+          "id": "legend-down-label",
+          "type": "rectangle",
+          "boundingBox": { "x": 980, "y": 848, "w": 230, "h": 32 },
+          "text": "downsample  #A7C9F0",
+          "style": {
+            "fill": { "type": "color", "color": "#FFFFFF" },
+            "stroke": { "color": "#FFFFFF", "width": 1, "style": "solid" },
+            "textColor": "#111111"
+          }
+        },
+        {
+          "id": "legend-copy-label",
+          "type": "rectangle",
+          "boundingBox": { "x": 980, "y": 896, "w": 230, "h": 32 },
+          "text": "copy  #000000",
+          "style": {
+            "fill": { "type": "color", "color": "#FFFFFF" },
+            "stroke": { "color": "#FFFFFF", "width": 1, "style": "solid" },
+            "textColor": "#111111"
+          }
+        },
+        {
+          "id": "base-palette-title",
+          "type": "text",
+          "boundingBox": { "x": 60, "y": 865, "w": 280, "h": 28 },
+          "text": "基础颜色板 / Base palette"
+        },
+        {
+          "id": "sw-backbone",
+          "type": "rectangle",
+          "boundingBox": { "x": 60, "y": 905, "w": 130, "h": 40 },
+          "text": "#FFF8E7",
+          "style": {
+            "fill": { "type": "color", "color": "#FFF8E7" },
+            "stroke": { "color": "#C9C0AA", "width": 1, "style": "solid" },
+            "textColor": "#111111"
+          }
+        },
+        {
+          "id": "sw-mafpn",
+          "type": "rectangle",
+          "boundingBox": { "x": 205, "y": 905, "w": 130, "h": 40 },
+          "text": "#E9ECF7",
+          "style": {
+            "fill": { "type": "color", "color": "#E9ECF7" },
+            "stroke": { "color": "#C7CEE2", "width": 1, "style": "solid" },
+            "textColor": "#111111"
+          }
+        },
+        {
+          "id": "sw-headbg",
+          "type": "rectangle",
+          "boundingBox": { "x": 350, "y": 905, "w": 130, "h": 40 },
+          "text": "#ECECEC",
+          "style": {
+            "fill": { "type": "color", "color": "#ECECEC" },
+            "stroke": { "color": "#CFCFCF", "width": 1, "style": "solid" },
+            "textColor": "#111111"
+          }
+        },
+        {
+          "id": "sw-rep",
+          "type": "rectangle",
+          "boundingBox": { "x": 495, "y": 905, "w": 130, "h": 40 },
+          "text": "#F7F2E7",
+          "style": {
+            "fill": { "type": "color", "color": "#F7F2E7" },
+            "stroke": { "color": "#CFC5B5", "width": 1, "style": "solid" },
+            "textColor": "#111111"
+          }
+        },
+        {
+          "id": "sw-green",
+          "type": "rectangle",
+          "boundingBox": { "x": 640, "y": 905, "w": 130, "h": 40 },
+          "text": "#CFE5B9",
+          "style": {
+            "fill": { "type": "color", "color": "#CFE5B9" },
+            "stroke": { "color": "#9BB289", "width": 1, "style": "solid" },
+            "textColor": "#111111"
+          }
+        },
+        {
+          "id": "sw-blue",
+          "type": "rectangle",
+          "boundingBox": { "x": 785, "y": 905, "w": 130, "h": 40 },
+          "text": "#B9DDEE",
+          "style": {
+            "fill": { "type": "color", "color": "#B9DDEE" },
+            "stroke": { "color": "#8DB7CB", "width": 1, "style": "solid" },
+            "textColor": "#111111"
+          }
+        },
+        {
+          "id": "sw-red",
+          "type": "rectangle",
+          "boundingBox": { "x": 930, "y": 905, "w": 130, "h": 40 },
+          "text": "#B86A61",
+          "style": {
+            "fill": { "type": "color", "color": "#B86A61" },
+            "stroke": { "color": "#984E48", "width": 1, "style": "solid" },
+            "textColor": "#FFFFFF"
+          }
+        },
+        {
+          "id": "sw-purple",
+          "type": "rectangle",
+          "boundingBox": { "x": 1075, "y": 905, "w": 130, "h": 40 },
+          "text": "#837C9D",
+          "style": {
+            "fill": { "type": "color", "color": "#837C9D" },
+            "stroke": { "color": "#67617F", "width": 1, "style": "solid" },
+            "textColor": "#FFFFFF"
+          }
+        },
+        {
+          "id": "yolo-title",
+          "type": "text",
+          "boundingBox": { "x": 60, "y": 1010, "w": 820, "h": 34 },
+          "text": "B. yolo26-small-no-shiftwise.yaml 需要补充的组件"
+        },
+        {
+          "id": "yolo-note",
+          "type": "rectangle",
+          "boundingBox": { "x": 60, "y": 1052, "w": 1260, "h": 50 },
+          "text": "YAML 模块集合：Conv / RepHMS(use_depthwise=False) / SPPF / C2PSA / SAF / FreqFusion / CoordAtt / AAF / Detect。Conv 与 SAF/AAF/RepHMS 复用，但新增 no-shiftwise 标注。",
+          "style": {
+            "fill": { "type": "color", "color": "#F6F6F6" },
+            "stroke": { "color": "#D8D8D8", "width": 1, "style": "solid" },
+            "textColor": "#333333"
+          }
+        },
+        {
+          "id": "op-title",
+          "type": "text",
+          "boundingBox": { "x": 60, "y": 1130, "w": 420, "h": 28 },
+          "text": "核心算子 / Operators"
+        },
+        {
+          "id": "conv",
+          "type": "rectangle",
+          "boundingBox": { "x": 60, "y": 1170, "w": 160, "h": 86 },
+          "text": "Conv\n3 x 3 / s=2\nC:64-1024",
+          "style": {
+            "fill": { "type": "color", "color": "#DDEBF7" },
+            "stroke": { "color": "#8DB7CB", "width": 2, "style": "solid" },
+            "textColor": "#111111"
+          }
+        },
+        {
+          "id": "rep-no-shift",
+          "type": "rectangle",
+          "boundingBox": { "x": 245, "y": 1170, "w": 205, "h": 86 },
+          "text": "RepHMS baseline\nk=3/5/7/9\nuse_depthwise=False",
+          "style": {
+            "fill": { "type": "color", "color": "#F7F2E7" },
+            "stroke": { "color": "#B8611E", "width": 2, "style": "solid" },
+            "textColor": "#111111"
+          }
+        },
+        {
+          "id": "sppf",
+          "type": "rectangle",
+          "boundingBox": { "x": 475, "y": 1170, "w": 160, "h": 86 },
+          "text": "SPPF\nk=5, n=3\nfast pooling",
+          "style": {
+            "fill": { "type": "color", "color": "#FADFC2" },
+            "stroke": { "color": "#D09B5D", "width": 2, "style": "solid" },
+            "textColor": "#111111"
+          }
+        },
+        {
+          "id": "c2psa",
+          "type": "rectangle",
+          "boundingBox": { "x": 660, "y": 1170, "w": 170, "h": 86 },
+          "text": "C2PSA\nPSA attention\nrepeats 4 -> 2(s)",
+          "style": {
+            "fill": { "type": "color", "color": "#D9D2E9" },
+            "stroke": { "color": "#8B7BAE", "width": 2, "style": "solid" },
+            "textColor": "#111111"
+          }
+        },
+        {
+          "id": "freqfusion",
+          "type": "rectangle",
+          "boundingBox": { "x": 855, "y": 1170, "w": 190, "h": 86 },
+          "text": "FreqFusion\nfrequency-aware\nALPF / AHPF masks",
+          "style": {
+            "fill": { "type": "color", "color": "#CFE2F3" },
+            "stroke": { "color": "#6FA8DC", "width": 2, "style": "solid" },
+            "textColor": "#111111"
+          }
+        },
+        {
+          "id": "coordatt",
+          "type": "rectangle",
+          "boundingBox": { "x": 1070, "y": 1170, "w": 170, "h": 86 },
+          "text": "CoordAtt\ncoordinate attention\nH/W positional cues",
+          "style": {
+            "fill": { "type": "color", "color": "#E2F0D9" },
+            "stroke": { "color": "#93C47D", "width": 2, "style": "solid" },
+            "textColor": "#111111"
+          }
+        },
+        {
+          "id": "detect",
+          "type": "rectangle",
+          "boundingBox": { "x": 60, "y": 1290, "w": 180, "h": 86 },
+          "text": "Detect\nP2,P3,P4,P5\nnc=80 / reg_max=1",
+          "style": {
+            "fill": { "type": "color", "color": "#D7C6E3" },
+            "stroke": { "color": "#8B7BAE", "width": 2, "style": "solid" },
+            "textColor": "#111111"
+          }
+        },
+        {
+          "id": "disabled",
+          "type": "rectangle",
+          "boundingBox": { "x": 265, "y": 1290, "w": 270, "h": 86 },
+          "text": "Disabled in this YAML\nShiftwiseConv path\nlarge-kernel depthwise path",
+          "style": {
+            "fill": { "type": "color", "color": "#EFEFEF" },
+            "stroke": { "color": "#B8611E", "width": 2, "style": "dashed" },
+            "textColor": "#333333"
+          }
+        },
+        {
+          "id": "config",
+          "type": "rectangle",
+          "boundingBox": { "x": 560, "y": 1290, "w": 300, "h": 86 },
+          "text": "Global config\nend2end=False / prog_loss=False\nstandard NMS inference",
+          "style": {
+            "fill": { "type": "color", "color": "#F6F6F6" },
+            "stroke": { "color": "#BFBFBF", "width": 2, "style": "solid" },
+            "textColor": "#111111"
+          }
+        },
+        {
+          "id": "scales",
+          "type": "rectangle",
+          "boundingBox": { "x": 885, "y": 1290, "w": 355, "h": 86 },
+          "text": "Scale presets\nn [0.50,0.25,1024]  s [0.50,0.50,1024]\nm [0.50,1.00,512]  l [1.00,1.00,512]  x [1.00,1.50,512]",
+          "style": {
+            "fill": { "type": "color", "color": "#FFFFFF" },
+            "stroke": { "color": "#D1D1D1", "width": 1, "style": "solid" },
+            "textColor": "#111111"
+          }
+        },
+        {
+          "id": "freq-variant-title",
+          "type": "text",
+          "boundingBox": { "x": 60, "y": 1410, "w": 500, "h": 28 },
+          "text": "FreqFusion 参数形态 / Variants"
+        },
+        {
+          "id": "ff512",
+          "type": "rectangle",
+          "boundingBox": { "x": 60, "y": 1450, "w": 180, "h": 58 },
+          "text": "FreqFusion [512]\nP5 -> P4",
+          "style": {
+            "fill": { "type": "color", "color": "#CFE2F3" },
+            "stroke": { "color": "#6FA8DC", "width": 1, "style": "solid" },
+            "textColor": "#111111"
+          }
+        },
+        {
+          "id": "ff256",
+          "type": "rectangle",
+          "boundingBox": { "x": 265, "y": 1450, "w": 180, "h": 58 },
+          "text": "FreqFusion [256]\nP4 -> P3",
+          "style": {
+            "fill": { "type": "color", "color": "#CFE2F3" },
+            "stroke": { "color": "#6FA8DC", "width": 1, "style": "solid" },
+            "textColor": "#111111"
+          }
+        },
+        {
+          "id": "ff128",
+          "type": "rectangle",
+          "boundingBox": { "x": 470, "y": 1450, "w": 260, "h": 58 },
+          "text": "FreqFusion [128,5,3,1,3,1,32]\nP3 -> P2 detailed args",
+          "style": {
+            "fill": { "type": "color", "color": "#CFE2F3" },
+            "stroke": { "color": "#6FA8DC", "width": 1, "style": "solid" },
+            "textColor": "#111111"
+          }
+        },
+        {
+          "id": "scale-title",
+          "type": "text",
+          "boundingBox": { "x": 780, "y": 1410, "w": 420, "h": 28 },
+          "text": "尺度标签 / Feature levels"
+        },
+        {
+          "id": "p1s",
+          "type": "rectangle",
+          "boundingBox": { "x": 780, "y": 1450, "w": 98, "h": 48 },
+          "text": "P1 / 2",
+          "style": {
+            "fill": { "type": "color", "color": "#DDEBF7" },
+            "stroke": { "color": "#8DB7CB", "width": 1, "style": "solid" },
+            "textColor": "#111111"
+          }
+        },
+        {
+          "id": "p2s",
+          "type": "rectangle",
+          "boundingBox": { "x": 895, "y": 1450, "w": 98, "h": 48 },
+          "text": "P2 / 4",
+          "style": {
+            "fill": { "type": "color", "color": "#FFF8E7" },
+            "stroke": { "color": "#E5DCC8", "width": 1, "style": "solid" },
+            "textColor": "#111111"
+          }
+        },
+        {
+          "id": "p3s",
+          "type": "rectangle",
+          "boundingBox": { "x": 1010, "y": 1450, "w": 98, "h": 48 },
+          "text": "P3 / 8",
+          "style": {
+            "fill": { "type": "color", "color": "#E9ECF7" },
+            "stroke": { "color": "#D3D9EA", "width": 1, "style": "solid" },
+            "textColor": "#111111"
+          }
+        },
+        {
+          "id": "p4s",
+          "type": "rectangle",
+          "boundingBox": { "x": 1125, "y": 1450, "w": 98, "h": 48 },
+          "text": "P4 / 16",
+          "style": {
+            "fill": { "type": "color", "color": "#ECECEC" },
+            "stroke": { "color": "#D7D7D7", "width": 1, "style": "solid" },
+            "textColor": "#111111"
+          }
+        },
+        {
+          "id": "p5s",
+          "type": "rectangle",
+          "boundingBox": { "x": 1240, "y": 1450, "w": 98, "h": 48 },
+          "text": "P5 / 32",
+          "style": {
+            "fill": { "type": "color", "color": "#D7C6E3" },
+            "stroke": { "color": "#C7B7D5", "width": 1, "style": "solid" },
+            "textColor": "#111111"
+          }
+        },
+        {
+          "id": "yaml-palette-title",
+          "type": "text",
+          "boundingBox": { "x": 60, "y": 1550, "w": 360, "h": 28 },
+          "text": "YOLO26 新增颜色板 / Added palette"
+        },
+        {
+          "id": "sw-conv",
+          "type": "rectangle",
+          "boundingBox": { "x": 60, "y": 1590, "w": 140, "h": 40 },
+          "text": "Conv #DDEBF7",
+          "style": {
+            "fill": { "type": "color", "color": "#DDEBF7" },
+            "stroke": { "color": "#8DB7CB", "width": 1, "style": "solid" },
+            "textColor": "#111111"
+          }
+        },
+        {
+          "id": "sw-sppf",
+          "type": "rectangle",
+          "boundingBox": { "x": 220, "y": 1590, "w": 140, "h": 40 },
+          "text": "SPPF #FADFC2",
+          "style": {
+            "fill": { "type": "color", "color": "#FADFC2" },
+            "stroke": { "color": "#D09B5D", "width": 1, "style": "solid" },
+            "textColor": "#111111"
+          }
+        },
+        {
+          "id": "sw-c2psa",
+          "type": "rectangle",
+          "boundingBox": { "x": 380, "y": 1590, "w": 150, "h": 40 },
+          "text": "C2PSA #D9D2E9",
+          "style": {
+            "fill": { "type": "color", "color": "#D9D2E9" },
+            "stroke": { "color": "#8B7BAE", "width": 1, "style": "solid" },
+            "textColor": "#111111"
+          }
+        },
+        {
+          "id": "sw-ff",
+          "type": "rectangle",
+          "boundingBox": { "x": 550, "y": 1590, "w": 170, "h": 40 },
+          "text": "FreqFusion #CFE2F3",
+          "style": {
+            "fill": { "type": "color", "color": "#CFE2F3" },
+            "stroke": { "color": "#6FA8DC", "width": 1, "style": "solid" },
+            "textColor": "#111111"
+          }
+        },
+        {
+          "id": "sw-ca",
+          "type": "rectangle",
+          "boundingBox": { "x": 740, "y": 1590, "w": 155, "h": 40 },
+          "text": "CoordAtt #E2F0D9",
+          "style": {
+            "fill": { "type": "color", "color": "#E2F0D9" },
+            "stroke": { "color": "#93C47D", "width": 1, "style": "solid" },
+            "textColor": "#111111"
+          }
+        },
+        {
+          "id": "sw-detect",
+          "type": "rectangle",
+          "boundingBox": { "x": 915, "y": 1590, "w": 150, "h": 40 },
+          "text": "Detect #D7C6E3",
+          "style": {
+            "fill": { "type": "color", "color": "#D7C6E3" },
+            "stroke": { "color": "#8B7BAE", "width": 1, "style": "solid" },
+            "textColor": "#111111"
+          }
+        },
+        {
+          "id": "sw-disabled",
+          "type": "rectangle",
+          "boundingBox": { "x": 1085, "y": 1590, "w": 180, "h": 40 },
+          "text": "Disabled #EFEFEF",
+          "style": {
+            "fill": { "type": "color", "color": "#EFEFEF" },
+            "stroke": { "color": "#B8611E", "width": 1, "style": "dashed" },
+            "textColor": "#111111"
+          }
+        }
+      ],
+      "lines": [
+        {
+          "id": "legend-up",
+          "lineType": "straight",
+          "endpoint1": {
+            "type": "positionEndpoint",
+            "style": "none",
+            "position": { "x": 860, "y": 816 }
+          },
+          "endpoint2": {
+            "type": "positionEndpoint",
+            "style": "arrow",
+            "position": { "x": 960, "y": 816 }
+          },
+          "stroke": { "color": "#D11F1F", "width": 2, "style": "solid" }
+        },
+        {
+          "id": "legend-down",
+          "lineType": "straight",
+          "endpoint1": {
+            "type": "positionEndpoint",
+            "style": "none",
+            "position": { "x": 860, "y": 864 }
+          },
+          "endpoint2": {
+            "type": "positionEndpoint",
+            "style": "arrow",
+            "position": { "x": 960, "y": 864 }
+          },
+          "stroke": { "color": "#A7C9F0", "width": 2, "style": "solid" }
+        },
+        {
+          "id": "legend-copy",
+          "lineType": "straight",
+          "endpoint1": {
+            "type": "positionEndpoint",
+            "style": "none",
+            "position": { "x": 860, "y": 912 }
+          },
+          "endpoint2": {
+            "type": "positionEndpoint",
+            "style": "arrow",
+            "position": { "x": 960, "y": 912 }
+          },
+          "stroke": { "color": "#000000", "width": 2, "style": "solid" }
+        }
+      ]
+    }
+  ]
+}

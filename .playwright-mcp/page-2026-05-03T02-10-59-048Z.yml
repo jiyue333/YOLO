@@ -1,0 +1,583 @@
+- generic:
+  - generic [ref=e2]:
+    - navigation [ref=e4]:
+      - button "Enable canvas navigation hotkeys & skip to content This feature allows you to use your keyboard to navigate content in a Lucid document." [ref=e6] [cursor=pointer]:
+        - generic [ref=e7]:
+          - generic [ref=e9]: Enable canvas navigation hotkeys & skip to content
+          - generic [ref=e10]: This feature allows you to use your keyboard to navigate content in a Lucid document.
+      - button "Keyboard shortcuts FN F1" [ref=e12] [cursor=pointer]:
+        - generic [ref=e15]: Keyboard shortcuts
+        - generic [ref=e17]:
+          - generic [ref=e19]: FN
+          - generic [ref=e21]: F1
+      - button "Open feature find menu ⌘ /" [ref=e23] [cursor=pointer]:
+        - generic [ref=e26]: Open feature find menu
+        - generic [ref=e28]:
+          - generic [ref=e30]: ⌘
+          - generic [ref=e32]: /
+      - link "Accessibility help" [ref=e33] [cursor=pointer]:
+        - /url: https://lucid.co/accessibility
+        - generic [ref=e34]:
+          - generic [ref=e37]: Accessibility help
+          - img [ref=e40]
+    - main [ref=e44]:
+      - generic [ref=e57]:
+        - generic [ref=e58]:
+          - banner [ref=e59]:
+            - generic [ref=e60]:
+              - button "Main menu" [ref=e66] [cursor=pointer]:
+                - img [ref=e68]
+                - img [ref=e78]
+              - generic [ref=e82] [cursor=pointer]:
+                - generic [ref=e83]: MHAF-YOLO + YOLO26 Components
+                - textbox "Document Title" [ref=e84]: MHAF-YOLO + YOLO26 Components
+              - button "Draft" [ref=e89] [cursor=pointer]:
+                - generic [ref=e90]:
+                  - img [ref=e92]
+                  - generic [ref=e94]: Draft
+              - generic [ref=e95]:
+                - button "Document menu" [ref=e100] [cursor=pointer]:
+                  - img [ref=e102]
+                - button "Feature Find" [ref=e106] [cursor=pointer]:
+                  - img [ref=e108]
+                - button "View revision history" [ref=e112] [cursor=pointer]:
+                  - img [ref=e114]
+            - generic [ref=e117]:
+              - button "Open collaborator controls" [ref=e121] [cursor=pointer]:
+                - img [ref=e123]
+              - generic [ref=e125]:
+                - button "Add Comment" [ref=e128] [cursor=pointer]:
+                  - img [ref=e130]
+                - button "Presentation Builder" [ref=e135] [cursor=pointer]:
+                  - img [ref=e137]
+                - button "Record video" [ref=e143] [cursor=pointer]:
+                  - img [ref=e145]
+              - generic [ref=e151]:
+                - button "Share" [ref=e154] [cursor=pointer]:
+                  - img [ref=e156]
+                  - generic [ref=e158]: Share
+                - button "Copy share link" [ref=e161] [cursor=pointer]:
+                  - img [ref=e163]
+              - button "Account settings" [ref=e173] [cursor=pointer]:
+                - generic [ref=e177]: L
+          - generic [ref=e179]:
+            - toolbar "More Options Toolbar" [ref=e180]:
+              - generic [ref=e181]:
+                - generic [ref=e183]:
+                  - generic:
+                    - button "Paint format" [disabled]:
+                      - generic:
+                        - img
+                - combobox [ref=e189] [cursor=pointer]:
+                  - generic [ref=e191]: — Select —
+                - button "Font Size" [ref=e195] [cursor=pointer]:
+                  - generic [ref=e196]: "8"
+                  - generic [ref=e197]: pt
+                - button "Bold" [ref=e201] [cursor=pointer]:
+                  - img [ref=e203]
+                - button "Italic" [ref=e207] [cursor=pointer]:
+                  - img [ref=e209]
+                - button "Underline" [ref=e213] [cursor=pointer]:
+                  - img [ref=e215]
+                - button "Text color" [ref=e220] [cursor=pointer]:
+                  - img [ref=e222]
+                - button "Alignment" [ref=e226] [cursor=pointer]:
+                  - img [ref=e228]
+                - button "Text options" [ref=e232] [cursor=pointer]:
+                  - img [ref=e234]
+                - button "Fill color" [ref=e241] [cursor=pointer]:
+                  - img [ref=e243]
+                - button "Line color" [ref=e251] [cursor=pointer]:
+                  - img [ref=e253]
+                - button "Shape options" [ref=e263] [cursor=pointer]:
+                  - img [ref=e265]
+                - button "Icon sets" [ref=e270] [cursor=pointer]:
+                  - img [ref=e272]
+                - button "Line style" [ref=e279] [cursor=pointer]
+                - group "Press enter or space to interact with this element" [ref=e283]:
+                  - textbox "Line width" [ref=e286]: 2 px
+                - button "Line options" [ref=e293] [cursor=pointer]:
+                  - img [ref=e295]
+                - generic [ref=e298]:
+                  - combobox [ref=e302] [cursor=pointer]:
+                    - generic [ref=e304]: None
+                  - button "Swap line ending" [ref=e309] [cursor=pointer]:
+                    - img [ref=e311]
+                  - combobox [ref=e316] [cursor=pointer]:
+                    - generic [ref=e318]: Arrow
+                - button "Link To" [disabled] [ref=e324]:
+                  - img [ref=e326]
+                - button "Actions" [disabled] [ref=e331]:
+                  - img [ref=e333]
+                - button "Magnetize" [disabled] [ref=e337]:
+                  - img [ref=e339]
+                - button "Lock" [disabled] [ref=e344] [cursor=pointer]:
+                  - img [ref=e346]
+            - button "Contextual Panel" [ref=e353] [cursor=pointer]:
+              - img [ref=e355]
+        - main:
+          - generic [ref=e359]:
+            - tablist "Creation tools" [ref=e360]:
+              - tab "Lucid AI" [ref=e363] [cursor=pointer]:
+                - img [ref=e365]
+              - tab "Template gallery" [ref=e369] [cursor=pointer]:
+                - img [ref=e371]
+              - tab "Shapes" [expanded] [selected] [ref=e375] [cursor=pointer]:
+                - img [ref=e377]
+              - tab "Containers" [ref=e381] [cursor=pointer]:
+                - img [ref=e383]
+              - tab "Themes" [ref=e388] [cursor=pointer]:
+                - img [ref=e390]
+              - tab "Conditional formatting" [ref=e395] [cursor=pointer]:
+                - img [ref=e397]
+              - tab "Images" [ref=e402] [cursor=pointer]:
+                - img [ref=e404]
+              - tab "Data linking" [ref=e408] [cursor=pointer]:
+                - img [ref=e410]
+              - tab "Visual Activities" [ref=e417] [cursor=pointer]:
+                - img [ref=e419]
+              - tab "Diagram as code" [ref=e426] [cursor=pointer]:
+                - img [ref=e428]
+              - tab "Integrations" [ref=e432] [cursor=pointer]:
+                - img [ref=e434]
+              - tab "Quick tools" [ref=e438] [cursor=pointer]:
+                - img [ref=e440]
+            - tabpanel [ref=e446]:
+              - generic [ref=e448]:
+                - generic [ref=e449]:
+                  - generic [ref=e451]:
+                    - button "Shapes" [ref=e453]:
+                      - heading "Shapes" [level=3] [ref=e455] [cursor=pointer]
+                    - button "Go to shape search" [ref=e457] [cursor=pointer]:
+                      - img [ref=e459]
+                  - generic [ref=e467]:
+                    - generic [ref=e471]:
+                      - generic [ref=e474]:
+                        - button "Drag" [ref=e476]:
+                          - img [ref=e478]
+                        - generic [ref=e480] [cursor=pointer]:
+                          - generic "Shapes placed on your canvas will appear here" [ref=e481]: Shapes In Use
+                          - button "Shapes In Use" [expanded] [ref=e483]:
+                            - img [ref=e485]
+                      - generic [ref=e490]:
+                        - toolbar "Shapes In Use" [ref=e492]:
+                          - button "Block" [ref=e494]:
+                            - img [ref=e497]
+                          - button "Block" [ref=e500]:
+                            - img [ref=e503]
+                          - button "Block" [ref=e506]:
+                            - img [ref=e509]
+                          - button "Block" [ref=e512]:
+                            - img [ref=e515]
+                          - button "Block" [ref=e518]:
+                            - img [ref=e521]
+                          - button "Block" [ref=e524]:
+                            - img [ref=e527]
+                          - button "Block" [ref=e530]:
+                            - img [ref=e533]
+                          - button "Block" [ref=e536]:
+                            - img [ref=e539]
+                          - button "Block" [ref=e542]:
+                            - img [ref=e545]
+                          - button "Block" [ref=e548]:
+                            - img [ref=e551]
+                          - button "Block" [ref=e554]:
+                            - img [ref=e557]
+                          - button "Block" [ref=e560]:
+                            - img [ref=e563]
+                          - button "Block" [ref=e566]:
+                            - img [ref=e569]
+                          - button "Block" [ref=e572]:
+                            - img [ref=e575]
+                          - button "Block" [ref=e578]:
+                            - img [ref=e581]
+                          - button "Block" [ref=e584]:
+                            - img [ref=e587]
+                          - button "Block" [ref=e590]:
+                            - img [ref=e593]
+                          - button "Block" [ref=e596]:
+                            - img [ref=e599]
+                          - button "Block" [ref=e602]:
+                            - img [ref=e605]
+                          - button "Block" [ref=e608]:
+                            - img [ref=e611]
+                          - button "Block" [ref=e614]:
+                            - img [ref=e617]
+                          - button "Block" [ref=e620]:
+                            - img [ref=e623]
+                          - button "Block" [ref=e626]:
+                            - img [ref=e629]
+                          - button "Block" [ref=e632]:
+                            - img [ref=e635]
+                          - button "Block" [ref=e638]:
+                            - img [ref=e641]
+                          - button "Block" [ref=e645]:
+                            - img [ref=e648]
+                          - button "Block" [ref=e651]:
+                            - img [ref=e654]
+                          - button "Block" [ref=e657]:
+                            - img [ref=e660]
+                          - button "Block" [ref=e663]:
+                            - img [ref=e666]
+                          - button "Block" [ref=e669]:
+                            - img [ref=e672]
+                          - button "Block" [ref=e675]:
+                            - img [ref=e678]
+                          - button "Block" [ref=e681]:
+                            - img [ref=e684]
+                          - button "Block" [ref=e687]:
+                            - img [ref=e690]
+                          - button "Block" [ref=e693]:
+                            - img [ref=e696]
+                          - button "Block" [ref=e699]:
+                            - img [ref=e702]
+                        - button "Create diagram key" [ref=e708] [cursor=pointer]:
+                          - generic [ref=e709]: Create diagram key
+                    - generic [ref=e714]:
+                      - generic [ref=e717]:
+                        - button "Drag" [ref=e719]:
+                          - img [ref=e721]
+                        - generic [ref=e723] [cursor=pointer]:
+                          - generic "Standard" [ref=e724]
+                          - generic [ref=e725]:
+                            - button "Standard Favorite Remove shape library group" [expanded] [ref=e726]:
+                              - img [ref=e728]
+                            - generic [ref=e730]:
+                              - button "Favorite" [ref=e732]:
+                                - img [ref=e734]
+                              - button "Remove shape library group" [ref=e737]:
+                                - img [ref=e739]
+                      - toolbar "Standard" [ref=e746]:
+                        - button "Text" [ref=e748]:
+                          - img [ref=e751]
+                        - button "Block" [ref=e754]:
+                          - img [ref=e757]
+                        - button "Sticky note" [ref=e761]:
+                          - img [ref=e764]
+                        - button "Hotspot" [ref=e768]:
+                          - img [ref=e771]
+                        - button "Line" [ref=e776]:
+                          - img [ref=e779]
+                        - button "Diagram key" [ref=e782]:
+                          - img [ref=e785]
+                        - button "Presentation frame" [ref=e793]:
+                          - img [ref=e796]
+                        - button "Code block" [ref=e801]:
+                          - img [ref=e804]
+                        - button "Frame" [ref=e808]:
+                          - img [ref=e811]
+                        - button "Assisted layout swim lane" [ref=e814]:
+                          - img [ref=e817]
+                        - button "Assisted layout rectangle container" [ref=e821]:
+                          - img [ref=e824]
+                    - generic [ref=e831]:
+                      - generic [ref=e834]:
+                        - button "Drag" [ref=e836]:
+                          - img [ref=e838]
+                        - generic [ref=e840] [cursor=pointer]:
+                          - generic "Shapes" [ref=e841]
+                          - generic [ref=e842]:
+                            - button "Shapes Favorite Remove shape library group" [expanded] [ref=e843]:
+                              - img [ref=e845]
+                            - generic [ref=e847]:
+                              - button "Favorite" [ref=e849]:
+                                - img [ref=e851]
+                              - button "Remove shape library group" [ref=e854]:
+                                - img [ref=e856]
+                      - toolbar "Shapes" [ref=e863]:
+                        - button "Rectangle" [ref=e865]:
+                          - img [ref=e868]
+                        - button "Isosceles triangle" [ref=e871]:
+                          - img [ref=e874]
+                        - button "Right triangle" [ref=e877]:
+                          - img [ref=e880]
+                        - button "Pentagon" [ref=e883]:
+                          - img [ref=e886]
+                        - button "Hexagon" [ref=e889]:
+                          - img [ref=e892]
+                        - button "Octagon" [ref=e895]:
+                          - img [ref=e898]
+                        - button "Cross" [ref=e901]:
+                          - img [ref=e904]
+                        - button "Cloud" [ref=e907]:
+                          - img [ref=e910]
+                        - button "Right arrow" [ref=e913]:
+                          - img [ref=e916]
+                        - button "Down arrow" [ref=e919]:
+                          - img [ref=e922]
+                        - button "Left arrow" [ref=e925]:
+                          - img [ref=e928]
+                        - button "Up arrow" [ref=e931]:
+                          - img [ref=e934]
+                        - button "Double arrow east-west" [ref=e937]:
+                          - img [ref=e940]
+                        - button "Double arrow north-south" [ref=e943]:
+                          - img [ref=e946]
+                        - button "Irregular pentagon" [ref=e949]:
+                          - img [ref=e952]
+                        - button "Chevron" [ref=e955]:
+                          - img [ref=e958]
+                        - button "Circle" [ref=e961]:
+                          - img [ref=e964]
+                        - button "Star" [ref=e967]:
+                          - img [ref=e970]
+                        - button "Diamond" [ref=e973]:
+                          - img [ref=e976]
+                        - button "Flex polygon" [ref=e979]:
+                          - img [ref=e982]
+                        - button "Horizontal divider" [ref=e987]:
+                          - img [ref=e990]
+                        - button "Vertical divider" [ref=e992]:
+                          - img [ref=e995]
+                    - generic [ref=e1000]:
+                      - generic [ref=e1003]:
+                        - button "Drag" [ref=e1005]:
+                          - img [ref=e1007]
+                        - generic [ref=e1009] [cursor=pointer]:
+                          - generic "Flowchart" [ref=e1010]
+                          - generic [ref=e1011]:
+                            - button "Flowchart Favorite Remove shape library group" [expanded] [ref=e1012]:
+                              - img [ref=e1014]
+                            - generic [ref=e1016]:
+                              - button "Favorite" [ref=e1018]:
+                                - img [ref=e1020]
+                              - button "Remove shape library group" [ref=e1023]:
+                                - img [ref=e1025]
+                      - generic [ref=e1029]:
+                        - generic [ref=e1030]:
+                          - toolbar "Flowchart" [ref=e1032]:
+                            - button "Process" [ref=e1034]:
+                              - img [ref=e1037]
+                            - button "Decision" [ref=e1040]:
+                              - img [ref=e1043]
+                            - button "Terminator" [ref=e1046]:
+                              - img [ref=e1049]
+                            - button "Predefined process" [ref=e1052]:
+                              - img [ref=e1055]
+                            - button "Document" [ref=e1059]:
+                              - img [ref=e1062]
+                            - button "Multiple documents" [ref=e1065]:
+                              - img [ref=e1068]
+                            - button "Manual input" [ref=e1072]:
+                              - img [ref=e1075]
+                            - button "Preparation" [ref=e1078]:
+                              - img [ref=e1081]
+                            - button "Data (I/O)" [ref=e1084]:
+                              - img [ref=e1087]
+                            - button "Database" [ref=e1090]:
+                              - img [ref=e1093]
+                            - button "Direct access storage (hard disk)" [ref=e1097]:
+                              - img [ref=e1100]
+                            - button "Internal storage" [ref=e1104]:
+                              - img [ref=e1107]
+                            - button "Paper tape" [ref=e1110]:
+                              - img [ref=e1113]
+                            - button "Manual operation" [ref=e1116]:
+                              - img [ref=e1119]
+                            - button "Delay" [ref=e1122]:
+                              - img [ref=e1125]
+                            - button "Stored data" [ref=e1128]:
+                              - img [ref=e1131]
+                            - button "Merge" [ref=e1134]:
+                              - img [ref=e1137]
+                            - button "Connector" [ref=e1140]:
+                              - img [ref=e1143]
+                            - button "Or" [ref=e1146]:
+                              - img [ref=e1149]
+                            - button "Summing junction" [ref=e1152]:
+                              - img [ref=e1155]
+                            - button "Display" [ref=e1158]:
+                              - img [ref=e1161]
+                            - button "Off-page link" [ref=e1164]:
+                              - img [ref=e1167]
+                            - button "Curly brace note" [ref=e1170]:
+                              - img [ref=e1173]
+                            - button "Curly brace note" [ref=e1177]:
+                              - img [ref=e1180]
+                            - button "Note" [ref=e1184]:
+                              - img [ref=e1187]
+                            - button "Note" [ref=e1190]:
+                              - img [ref=e1193]
+                            - button "Swim lane" [ref=e1196]:
+                              - img [ref=e1199]
+                            - button "Swim lane" [ref=e1205]:
+                              - img [ref=e1208]
+                          - button "AI Diagramming" [ref=e1217] [cursor=pointer]:
+                            - img [ref=e1219]
+                            - generic [ref=e1221]: AI Diagramming
+                        - generic [ref=e1222]:
+                          - generic [ref=e1225] [cursor=pointer]:
+                            - generic "Flowchart tools" [ref=e1226]
+                            - generic [ref=e1227]:
+                              - button "Flowchart tools Remove flowchart toolkit tools section" [ref=e1228]:
+                                - img [ref=e1230]
+                              - button "Remove flowchart toolkit tools section" [ref=e1234]:
+                                - img [ref=e1236]
+                          - generic [ref=e1240] [cursor=pointer]:
+                            - generic "Flowchart templates" [ref=e1241]
+                            - generic [ref=e1242]:
+                              - button "Flowchart templates Remove flowchart toolkit templates section" [ref=e1243]:
+                                - img [ref=e1245]
+                              - button "Remove flowchart toolkit templates section" [ref=e1249]:
+                                - img [ref=e1251]
+                          - generic [ref=e1255] [cursor=pointer]:
+                            - generic "Flowchart tips" [ref=e1256]
+                            - generic [ref=e1257]:
+                              - button "Flowchart tips Remove flowchart toolkit tips section" [ref=e1258]:
+                                - img [ref=e1260]
+                              - button "Remove flowchart toolkit tips section" [ref=e1264]:
+                                - img [ref=e1266]
+                    - generic [ref=e1272]:
+                      - generic [ref=e1275]:
+                        - button "Drag" [ref=e1277]:
+                          - img [ref=e1279]
+                        - generic [ref=e1281] [cursor=pointer]:
+                          - generic "Containers" [ref=e1282]
+                          - generic [ref=e1283]:
+                            - button "Containers Favorite Remove shape library group" [expanded] [ref=e1284]:
+                              - img [ref=e1286]
+                            - generic [ref=e1288]:
+                              - button "Favorite" [ref=e1290]:
+                                - img [ref=e1292]
+                              - button "Remove shape library group" [ref=e1295]:
+                                - img [ref=e1297]
+                      - toolbar "Containers" [ref=e1304]:
+                        - button "Swim lane" [ref=e1306]:
+                          - img [ref=e1309]
+                        - button "Swim lane" [ref=e1313]:
+                          - img [ref=e1316]
+                        - button "Rectangle container" [ref=e1320]:
+                          - img [ref=e1323]
+                        - button "Rounded rectangle container" [ref=e1326]:
+                          - img [ref=e1329]
+                        - button "Circle container" [ref=e1332]:
+                          - img [ref=e1335]
+                        - button "Pill container" [ref=e1338]:
+                          - img [ref=e1341]
+                        - button "Double brace" [ref=e1344]:
+                          - img [ref=e1347]
+                        - button "Double bracket" [ref=e1350]:
+                          - img [ref=e1353]
+                        - button "Double brace" [ref=e1356]:
+                          - img [ref=e1359]
+                        - button "Double bracket" [ref=e1362]:
+                          - img [ref=e1365]
+                    - generic [ref=e1371]:
+                      - generic [ref=e1374]:
+                        - button "Drag" [ref=e1376]:
+                          - img [ref=e1378]
+                        - generic [ref=e1380] [cursor=pointer]:
+                          - generic "My saved shapes" [ref=e1381]
+                          - generic [ref=e1382]:
+                            - button "My saved shapes Favorite Remove shape library group" [expanded] [ref=e1383]:
+                              - img [ref=e1385]
+                            - generic [ref=e1387]:
+                              - button "Favorite" [ref=e1389]:
+                                - img [ref=e1391]
+                              - button "Remove shape library group" [ref=e1394]:
+                                - img [ref=e1396]
+                      - generic [ref=e1402]:
+                        - generic [ref=e1404]:
+                          - img [ref=e1406]
+                          - generic [ref=e1417]: Drop shapes to save
+                        - toolbar "My saved shapes"
+                - generic [ref=e1423]:
+                  - generic:
+                    - img [ref=e1425]
+                    - img [ref=e1432]
+                    - img [ref=e1437]
+                    - img [ref=e1444]
+                    - img [ref=e1447]
+                  - button "More shapes" [ref=e1452] [cursor=pointer]:
+                    - generic [ref=e1453]: More shapes
+                - button "Import data" [ref=e1457] [cursor=pointer]:
+                  - img [ref=e1459]
+                  - generic [ref=e1462]: Import data
+          - generic [ref=e1472]:
+            - heading "Page" [level=3] [ref=e1475]
+            - generic [ref=e1476]:
+              - generic "Item properties" [ref=e1478]:
+                - navigation [ref=e1479]:
+                  - tablist [ref=e1482]:
+                    - tab "Data" [selected] [ref=e1483] [cursor=pointer]:
+                      - generic [ref=e1484]: Data
+              - tabpanel [ref=e1485]:
+                - generic [ref=e1486]:
+                  - generic [ref=e1490]:
+                    - heading "Current Page Data" [level=4] [ref=e1492]:
+                      - button "Current Page Data" [expanded] [ref=e1493] [cursor=pointer]:
+                        - generic [ref=e1497]: Current Page Data
+                        - img [ref=e1500]
+                    - button "Table View" [ref=e1504] [cursor=pointer]:
+                      - img [ref=e1506]
+                    - generic [ref=e1514]:
+                      - button "Empty state clickable image" [ref=e1516]:
+                        - img [ref=e1518]
+                      - generic [ref=e1523]: No attached data. Create new data or drag it here from an attached dataset.
+                      - button "New Data Field" [ref=e1525] [cursor=pointer]:
+                        - generic [ref=e1526]: New Data Field
+                  - generic [ref=e1531]:
+                    - heading "Attached Images" [level=4] [ref=e1533]:
+                      - button "Attached Images" [expanded] [ref=e1534] [cursor=pointer]:
+                        - generic [ref=e1538]: Attached Images
+                        - img [ref=e1540]
+                    - generic [ref=e1548] [cursor=pointer]:
+                      - img [ref=e1550]
+                      - generic [ref=e1553]: Choose a file or drag and drop an image here to upload
+                      - generic:
+                        - button "Choose a file or drag and drop an image here to upload Choose files"
+                  - generic [ref=e1558]:
+                    - heading "Page ID" [level=4] [ref=e1560]:
+                      - button "Page ID" [expanded] [ref=e1561] [cursor=pointer]:
+                        - generic [ref=e1565]: Page ID
+                        - img [ref=e1568]
+                    - button "Copy page ID to the clipboard" [ref=e1572] [cursor=pointer]:
+                      - img [ref=e1574]
+                    - generic [ref=e1581] [cursor=pointer]:
+                      - generic [ref=e1582]: page1
+                      - textbox "page1" [ref=e1583]
+        - generic [ref=e1586]:
+          - generic [ref=e1588]:
+            - generic [ref=e1589]:
+              - button "Page List" [ref=e1593] [cursor=pointer]:
+                - img [ref=e1595]
+              - generic "MHAF-YOLO + YOLO26 Components" [ref=e1600]:
+                - generic [ref=e1602]:
+                  - button "MHAF-YOLO + YOLO26 Components MHAF-YOLO + YOLO26 Components" [ref=e1604]:
+                    - generic [ref=e1605] [cursor=pointer]:
+                      - generic [ref=e1606]: MHAF-YOLO + YOLO26 Components
+                      - textbox "MHAF-YOLO + YOLO26 Components"
+                  - button "Edit page" [ref=e1608] [cursor=pointer]:
+                    - img [ref=e1610]
+              - button "Add page" [ref=e1614] [cursor=pointer]:
+                - img [ref=e1616]
+              - generic [ref=e1618]:
+                - button "Layers" [ref=e1621] [cursor=pointer]:
+                  - img [ref=e1623]
+                - button "Page insights" [ref=e1627] [cursor=pointer]:
+                  - img [ref=e1629]
+            - toolbar "Edit history" [ref=e1633]:
+              - button "Undo" [disabled] [ref=e1635]:
+                - generic:
+                  - img
+              - button "Redo" [disabled] [ref=e1637]:
+                - generic:
+                  - img
+            - generic [ref=e1638]:
+              - button "Zoom out" [ref=e1640] [cursor=pointer]:
+                - img [ref=e1642]
+              - 'button "Zoom level: 43%" [ref=e1645] [cursor=pointer]':
+                - generic [ref=e1646]: 43%
+              - button "Zoom in" [ref=e1648] [cursor=pointer]:
+                - img [ref=e1650]
+          - generic [ref=e1653] [cursor=pointer]:
+            - button "Fullscreen" [ref=e1655]:
+              - img [ref=e1657]
+            - button "Help Icon" [ref=e1665]:
+              - img [ref=e1667]
+    - note "Status messages for dynamic page updates" [ref=e1670]:
+      - status [ref=e1671]:
+        - note "Copy share link"
+        - generic [ref=e1672]: now available
+  - textbox [active] [ref=e1673]
+  - textbox "Text editor" [ref=e1674]

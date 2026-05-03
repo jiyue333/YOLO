@@ -1,0 +1,89 @@
+- generic [ref=e1]:
+  - dialog "Cookie 同意横幅" [ref=e2]:
+    - button "关闭此对话框" [active] [ref=e3] [cursor=pointer]:
+      - img "关闭此对话框" [ref=e4]
+    - generic [ref=e5]:
+      - generic [ref=e6]: 本网站利用 Cookie 等技术来启用基本网站功能以及 分析、个性化定制 和 有针对性的广告。 要了解更多信息，请查看以下链接：
+      - link "Cookie政策" [ref=e7] [cursor=pointer]:
+        - /url: https://lucid.co/cookies
+    - button "设定偏好" [ref=e9] [cursor=pointer]
+  - generic [ref=e11]:
+    - main [ref=e13]:
+      - generic [ref=e14]:
+        - generic [ref=e16]:
+          - link "Lucid - home" [ref=e18] [cursor=pointer]:
+            - /url: http://lucid.co
+            - img "Lucid - home" [ref=e22]
+          - generic [ref=e23]:
+            - navigation:
+              - generic:
+                - heading [level=3]
+            - button "Enter Join ID" [ref=e25] [cursor=pointer]:
+              - img [ref=e27]
+              - generic [ref=e31]: Enter Join ID
+        - generic [ref=e32]:
+          - generic:
+            - heading [level=1]
+          - heading "Log in to access the Lucid Visual Collaboration Suite" [level=1] [ref=e37]
+      - generic [ref=e41]:
+        - generic [ref=e43]:
+          - generic [ref=e47]:
+            - textbox "Email or username" [ref=e49]
+            - generic: Email or username
+          - generic [ref=e50]:
+            - generic [ref=e53] [cursor=pointer]:
+              - generic [ref=e54]:
+                - img [ref=e55]
+                - img [ref=e57]
+                - checkbox "Remember me" [checked] [ref=e59]
+              - generic [ref=e60]: Remember me
+            - button "Log in with password" [ref=e62] [cursor=pointer]:
+              - generic [ref=e63]: Log in with password
+          - generic [ref=e64] [cursor=pointer]:
+            - button "Next" [ref=e66]:
+              - generic [ref=e67]: Next
+            - iframe [ref=e71]:
+              - generic [ref=f5e6]:
+                - text: protected by
+                - strong [ref=f5e7]: reCAPTCHA
+          - generic [ref=e74]: or
+          - generic [ref=e76]:
+            - button "Sign up with Google" [ref=e78] [cursor=pointer]:
+              - generic [ref=e79]:
+                - img [ref=e81]
+                - generic [ref=e86]: Log in with Google
+            - button "Sign up with Microsoft" [ref=e88] [cursor=pointer]:
+              - generic [ref=e89]:
+                - img [ref=e91]
+                - generic [ref=e96]: Log in with Microsoft
+            - button "Sign up with Slack" [ref=e98] [cursor=pointer]:
+              - generic [ref=e99]:
+                - img [ref=e101]
+                - generic [ref=e106]: Log in with Slack
+            - button "Log in with SSO" [ref=e108] [cursor=pointer]:
+              - generic [ref=e109]:
+                - img [ref=e111]
+                - generic [ref=e114]: Log in with SSO
+          - generic [ref=e115]:
+            - text: Don't have an account? Sign up for
+            - link "Lucidchart" [ref=e117] [cursor=pointer]:
+              - /url: /pricing/lucidchart
+              - generic [ref=e118]: Lucidchart
+            - text: or
+            - link "Lucidspark" [ref=e120] [cursor=pointer]:
+              - /url: /pricing/lucidspark
+              - generic [ref=e121]: Lucidspark
+            - text: .
+        - generic [ref=e126]:
+          - term [ref=e127]:
+            - heading "Share your work via Lucid to enjoy:" [level=3] [ref=e129]
+          - definition [ref=e130]:
+            - img [ref=e132]
+            - generic [ref=e135]: Real-time collaboration
+          - definition [ref=e136]:
+            - img [ref=e138]
+            - generic [ref=e141]: Commenting capability
+          - definition [ref=e142]:
+            - img [ref=e144]
+            - generic [ref=e147]: Permission control
+    - note "Status messages for dynamic page updates" [ref=e148]

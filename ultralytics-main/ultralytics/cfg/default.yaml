@@ -103,12 +103,15 @@ box: 7.5 # (float) box loss gain
 cls: 0.5 # (float) classification loss gain
 cls_pw: 0.0 # (float) class weights power for handling class imbalance (0.0=disable, 1.0=full inverse frequency)
 dfl: 1.5 # (float) distribution focal loss gain
+use_wiou: True # (bool) enable Wise-IoU v3 box loss; False falls back to CIoU
 wiou_alpha: 1.9 # (float) Wise-IoU v3 alpha
 wiou_delta: 3.0 # (float) Wise-IoU v3 delta
 wiou_momentum: 0.01 # (float) Wise-IoU running mean EMA momentum
+use_nwd: True # (bool) enable small-object normalized Wasserstein distance loss
 nwd_weight: 0.6 # (float) small-object NWD loss gain
 nwd_small_area: 1024.0 # (float) small-object area threshold in pixels, 32x32
 nwd_constant: 12.8 # (float) NWD normalization constant
+use_repulsion: True # (bool) enable RepGT repulsion loss
 repgt_weight: 0.3 # (float) RepGT loss gain
 repulsion_sigma: 0.5 # (float) RepGT smooth-ln sigma
 tal_topk: 20 # (int) one-to-many TAL top-k for dense small targets
