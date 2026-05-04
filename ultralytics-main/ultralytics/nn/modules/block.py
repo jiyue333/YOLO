@@ -58,6 +58,7 @@ __all__ = (
     "ResNetLayer",
     "SAF",
     "SCDown",
+    "SimAM",
     "TorchVision",
 )
 
@@ -245,17 +246,19 @@ class SPPF(nn.Module):
 
 
 class CoordAtt(nn.Module):
-    """Coordinate Attention block for preserving positional cues on small-object feature maps."""
+    """Coordinate Attention block using local max pooling to preserve small-object cues."""
 
-    def __init__(self, c1: int, reduction: int = 32):
+    def __init__(self, c1: int, reduction: int = 32, local_kernel: int = 3):
         """Initialize Coordinate Attention.
 
         Args:
             c1 (int): Input and output channels.
             reduction (int): Channel reduction ratio for the shared attention embedding.
+            local_kernel (int): Local max-pooling kernel used before coordinate pooling.
         """
         super().__init__()
         c_ = max(8, c1 // reduction)
+        self.pool = nn.MaxPool2d(local_kernel, stride=1, padding=local_kernel // 2)
         self.conv1 = nn.Conv2d(c1, c_, 1, bias=False)
         self.bn1 = nn.BatchNorm2d(c_)
         self.act = nn.Hardswish()
@@ -263,15 +266,33 @@ class CoordAtt(nn.Module):
         self.conv_w = nn.Conv2d(c_, c1, 1, bias=True)
 
     def forward(self, x: torch.Tensor) -> torch.Tensor:
-        """Apply height-aware and width-aware attention."""
+        """Apply local max-pooled height-aware and width-aware attention."""
         _, _, h, w = x.shape
-        x_h = x.mean(dim=3, keepdim=True)
-        x_w = x.mean(dim=2, keepdim=True).transpose(2, 3)
+        pooled = self.pool(x)
+        x_h = pooled.mean(dim=3, keepdim=True)
+        x_w = pooled.mean(dim=2, keepdim=True).transpose(2, 3)
         y = torch.cat((x_h, x_w), dim=2)
         y = self.act(self.bn1(self.conv1(y)))
         a_h, a_w = torch.split(y, [h, w], dim=2)
         a_w = a_w.transpose(2, 3)
         return x * self.conv_h(a_h).sigmoid() * self.conv_w(a_w).sigmoid()
+
+
+class SimAM(nn.Module):
+    """Parameter-free SimAM attention for lightweight spatial-channel feature calibration."""
+
+    def __init__(self, e_lambda: float = 1e-4):
+        """Initialize SimAM with the numerical stability constant from the paper."""
+        super().__init__()
+        self.e_lambda = e_lambda
+        self.activation = nn.Sigmoid()
+
+    def forward(self, x: torch.Tensor) -> torch.Tensor:
+        """Apply SimAM energy-based attention."""
+        n = max(x.shape[2] * x.shape[3] - 1, 1)
+        d = (x - x.mean(dim=(2, 3), keepdim=True)).pow(2)
+        v = d.sum(dim=(2, 3), keepdim=True) / n
+        return x * self.activation(d / (4 * (v + self.e_lambda)) + 0.5)
 
 
 class AVG(nn.Module):

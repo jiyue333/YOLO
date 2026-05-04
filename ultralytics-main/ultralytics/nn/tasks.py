@@ -73,6 +73,7 @@ from ultralytics.nn.modules import (
     SCDown,
     Segment,
     Segment26,
+    SimAM,
     TorchVision,
     WorldDetect,
     YOLOEDetect,

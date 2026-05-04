@@ -65,6 +65,7 @@ from .block import (
     ResNetLayer,
     SAF,
     SCDown,
+    SimAM,
     TorchVision,
 )
 from .conv import (
@@ -191,6 +192,7 @@ __all__ = (
     "SCDown",
     "Segment",
     "Segment26",
+    "SimAM",
     "SpatialAttention",
     "TorchVision",
     "TransformerBlock",
