@@ -45,12 +45,15 @@ from ultralytics.nn.modules import (
     Classify,
     Concat,
     CoordAtt,
+    CSPStage,
     Conv,
     Conv2,
     ConvTranspose,
     Detect,
+    Detect_DyHead,
     DWConv,
     DWConvTranspose2d,
+    DySample,
     Focus,
     FreqFusion,
     GhostBottleneck,
@@ -60,6 +63,7 @@ from ultralytics.nn.modules import (
     ImagePoolingAttn,
     Index,
     LRPCHead,
+    MS_PFE,
     Pose,
     Pose26,
     RepC3,
@@ -1600,6 +1604,8 @@ def parse_model(d, ch, verbose=True):
             C1,
             C2,
             C2f,
+            MS_PFE,
+            CSPStage,
             C3k2,
             C3k2Shift,
             RepNCSPELAN4,
@@ -1628,6 +1634,8 @@ def parse_model(d, ch, verbose=True):
             C1,
             C2,
             C2f,
+            MS_PFE,
+            CSPStage,
             C3k2,
             C3k2Shift,
             C2fAttn,
@@ -1694,6 +1702,11 @@ def parse_model(d, ch, verbose=True):
         elif m is CoordAtt:
             c2 = ch[f]
             args = [c2, *args]
+        elif m is SimAM:
+            c2 = ch[f]
+        elif m is DySample:
+            c2 = ch[f]
+            args = [c2, *args]
         elif m is AVG:
             c2 = ch[f]
         elif m in frozenset({AAF, SAF}):
@@ -1708,6 +1721,7 @@ def parse_model(d, ch, verbose=True):
         elif m in frozenset(
             {
                 Detect,
+                Detect_DyHead,
                 WorldDetect,
                 YOLOEDetect,
                 Segment,
@@ -1721,11 +1735,23 @@ def parse_model(d, ch, verbose=True):
             }
         ):
             args.extend([reg_max, end2end, [ch[x] for x in f]])
-            if m is Detect:
+            if m in frozenset({Detect, Detect_DyHead}):
                 args.append(bool(prog_loss))
             if m is Segment or m is YOLOESegment or m is Segment26 or m is YOLOESegment26:
                 args[2] = make_divisible(min(args[2], max_channels) * width, 8)
-            if m in {Detect, YOLOEDetect, Segment, Segment26, YOLOESegment, YOLOESegment26, Pose, Pose26, OBB, OBB26}:
+            if m in {
+                Detect,
+                Detect_DyHead,
+                YOLOEDetect,
+                Segment,
+                Segment26,
+                YOLOESegment,
+                YOLOESegment26,
+                Pose,
+                Pose26,
+                OBB,
+                OBB26,
+            }:
                 m.legacy = legacy
         elif m is v10Detect:
             args.append([ch[x] for x in f])

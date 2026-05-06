@@ -20,7 +20,18 @@ from .conv import Conv, DWConv
 from .transformer import MLP, DeformableTransformerDecoder, DeformableTransformerDecoderLayer
 from .utils import bias_init_with_prob, linear_init
 
-__all__ = "OBB", "Classify", "Detect", "Pose", "RTDETRDecoder", "Segment", "YOLOEDetect", "YOLOESegment", "v10Detect"
+__all__ = (
+    "OBB",
+    "Classify",
+    "Detect",
+    "Detect_DyHead",
+    "Pose",
+    "RTDETRDecoder",
+    "Segment",
+    "YOLOEDetect",
+    "YOLOESegment",
+    "v10Detect",
+)
 
 
 class Detect(nn.Module):
@@ -254,6 +265,133 @@ class Detect(nn.Module):
     def fuse(self) -> None:
         """Remove the one2many head for inference optimization."""
         self.cv2 = self.cv3 = None
+
+
+class _DyHeadTaskAttention(nn.Module):
+    """Channel-wise task attention used by the CRD-YOLO DyHead adapter."""
+
+    def __init__(self, channels: int, reduction: int = 4):
+        """Initialize lightweight task-aware channel gating."""
+        super().__init__()
+        hidden = max(channels // reduction, 16)
+        self.attn = nn.Sequential(
+            nn.AdaptiveAvgPool2d(1),
+            nn.Conv2d(channels, hidden, 1),
+            nn.ReLU(inplace=True),
+            nn.Conv2d(hidden, channels, 1),
+            nn.Hardsigmoid(inplace=True),
+        )
+
+    def forward(self, x: torch.Tensor) -> torch.Tensor:
+        """Apply task-aware channel attention."""
+        return x * self.attn(x)
+
+
+class DyHeadBlock(nn.Module):
+    """Dynamic-head feature fusion block for CRD-YOLO.
+
+    This keeps the DyHead scale/spatial/task interaction pattern without adding an MMCV dependency. The spatial
+    interaction uses shared convolutional projections across adjacent pyramid levels, while the scale and task branches
+    use lightweight attention gates.
+    """
+
+    def __init__(self, channels: int):
+        """Initialize a DyHead block for equal-channel pyramid features."""
+        super().__init__()
+        self.mid_conv = Conv(channels, channels, 3)
+        self.low_conv = Conv(channels, channels, 3, 2)
+        self.high_conv = Conv(channels, channels, 3)
+        self.scale_attn = nn.Sequential(
+            nn.AdaptiveAvgPool2d(1),
+            nn.Conv2d(channels, 1, 1),
+            nn.ReLU(inplace=True),
+            nn.Hardsigmoid(inplace=True),
+        )
+        self.task_attn = _DyHeadTaskAttention(channels)
+
+    def _weighted(self, x: torch.Tensor) -> torch.Tensor:
+        """Apply scale-aware attention to a projected feature."""
+        return x * self.scale_attn(x)
+
+    def forward(self, x: list[torch.Tensor]) -> list[torch.Tensor]:
+        """Fuse each feature level with its adjacent levels."""
+        outs = []
+        for i, feat in enumerate(x):
+            level_feats = [self._weighted(self.mid_conv(feat))]
+            if i > 0:
+                level_feats.append(self._weighted(self.low_conv(x[i - 1])))
+            if i < len(x) - 1:
+                high = F.interpolate(self.high_conv(x[i + 1]), size=feat.shape[2:], mode="nearest")
+                level_feats.append(self._weighted(high))
+            outs.append(self.task_attn(sum(level_feats) / len(level_feats)))
+        return outs
+
+
+class Detect_DyHead(Detect):
+    """YOLO detection head with CRD-YOLO DyHead feature fusion."""
+
+    def __init__(
+        self,
+        nc: int = 80,
+        hidc: int = 256,
+        block_num: int = 2,
+        reg_max: int = 16,
+        end2end: bool = False,
+        ch: tuple[int, ...] = (),
+        prog_loss: bool = False,
+    ):
+        """Initialize Detect_DyHead.
+
+        Args match the CRD-YOLO YAML head signature plus Ultralytics parser-supplied ``reg_max``, ``end2end`` and
+        input channels.
+        """
+        nn.Module.__init__(self)
+        self.prog_loss = bool(prog_loss)
+        self._end2end = bool(end2end)
+        self.nc = nc
+        self.nl = len(ch)
+        self.reg_max = reg_max
+        self.no = nc + self.reg_max * 4
+        self.stride = torch.zeros(self.nl)
+        c2 = max((16, ch[0] // 4, self.reg_max * 4))
+        c3 = max(ch[0], self.nc)
+        self.input_proj = nn.ModuleList(Conv(x, hidc, 1) for x in ch)
+        self.dyhead = nn.Sequential(*(DyHeadBlock(hidc) for _ in range(block_num)))
+        self.cv2 = nn.ModuleList(
+            nn.Sequential(Conv(hidc, c2, 3), Conv(c2, c2, 3), nn.Conv2d(c2, 4 * self.reg_max, 1)) for _ in ch
+        )
+        self.cv3 = nn.ModuleList(
+            nn.Sequential(
+                nn.Sequential(DWConv(hidc, x, 3), Conv(x, c3, 1)),
+                nn.Sequential(DWConv(c3, c3, 3), Conv(c3, c3, 1)),
+                nn.Conv2d(c3, self.nc, 1),
+            )
+            for x in ch
+        )
+        self.dfl = DFL(self.reg_max) if self.reg_max > 1 else nn.Identity()
+        if self.end2end or self.prog_loss:
+            self.one2one_cv2 = copy.deepcopy(self.cv2)
+            self.one2one_cv3 = copy.deepcopy(self.cv3)
+
+    def _features(self, x: list[torch.Tensor]) -> list[torch.Tensor]:
+        """Project input pyramid features to a shared width and apply DyHead fusion."""
+        return self.dyhead([proj(feat) for proj, feat in zip(self.input_proj, x)])
+
+    def forward(
+        self, x: list[torch.Tensor]
+    ) -> dict[str, torch.Tensor] | torch.Tensor | tuple[torch.Tensor, dict[str, torch.Tensor]]:
+        """Concatenate and return DyHead-enhanced bounding box and class predictions."""
+        feats = self._features(x)
+        preds = self.forward_head(feats, self.cv2, self.cv3)
+        if self.end2end or (self.training and self.prog_loss):
+            one2one = self.forward_head([feat.detach() for feat in feats], self.one2one_cv2, self.one2one_cv3)
+            preds = {"one2many": preds, "one2one": one2one}
+        if self.training:
+            return preds
+        y = self._inference(preds["one2one"] if self.end2end else preds)
+        if self.end2end:
+            y = self.postprocess(y.permute(0, 2, 1))
+        return y if self.export else (y, preds)
 
 
 class Segment(Detect):

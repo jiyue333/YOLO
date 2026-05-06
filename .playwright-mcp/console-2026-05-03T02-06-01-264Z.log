@@ -1,0 +1,114 @@
+[    2455ms] [WARNING] [GSI_LOGGER]: Your client application uses one of the Google One Tap prompt UI status methods that may stop functioning when FedCM becomes mandatory. Refer to the migration guide to update your code accordingly and opt-in to FedCM to test your changes. Learn more: https://developers.google.com/identity/gsi/web/guides/fedcm-migration?s=dc#display_moment and https://developers.google.com/identity/gsi/web/guides/fedcm-migration?s=dc#skipped_moment @ https://static-assets.lucidchart.com/cas/4/3/dc2905d9baea79d6f26d31fcbdd5195a204bd0ffe2931f16faf6bfb4dda85e.js.br:78
+[    2509ms] [ERROR] Not signed in with the identity provider. @ https://lucid.app/users/login#/login:0
+[    3750ms] [ERROR] [GSI_LOGGER]: FedCM get() rejects with AbortError: signal is aborted without reason @ https://static-assets.lucidchart.com/cas/4/3/dc2905d9baea79d6f26d31fcbdd5195a204bd0ffe2931f16faf6bfb4dda85e.js.br:79
+[    6089ms] [VERBOSE] [DOM] Password field is not contained in a form: (More info: https://goo.gl/9p2vKq) %o @ https://accounts.google.com/v3/signin/identifier?opparams=%253Fopenid.realm%253Dhttps%25253A%25252F%25252Flucid.app&dsh=S-938499348%3A1777773966228996&client_id=7081045131.apps.googleusercontent.com&include_granted_scopes=true&o2v=1&redirect_uri=https%3A%2F%2Flucid.app%2Fusers%2FgoogleFederatedLoggedIn&response_type=code&scope=email+profile&service=lso&state=17bf30d6f5279eed91df&flowName=GeneralOAuthFlow&continue=https%3A%2F%2Faccounts.google.com%2Fsignin%2Foauth%2Fconsent%3Fauthuser%3Dunknown%26part%3DAJi8hAOGlUkDke4UEXbM2Bpdsgb7d3gP4pF2vour1Tf0talgSv2YaoA8CABSkmX8VIJnPpoFXKuoVXYv4pQ9O0HXOx2f2ckqemDGX6mKdkUuSNq7Zv1ADjzzNKbB3CNhhcQ16CCeqKIDCpXYFx85tS8V6mJk2yFxvkWnfrUveEr_kFk2EwYspA8M9_qw4nGnuVu9oMOP9HNivC-2_BBFCXxBSzZ8hnrZkJIxgcEjwhBeAjrlQB0x2FkVkh9_UprQOlFZ2hgj6ElCu8SSKZr3Fn42rVMttTYgSlYazuJBGwtgU4CNXGu9T71msDosoHJy4UVMCpxxxRtasLQRthfNtYKzHwML0PdtosjCM8DSyMJE1wsIyPy15oGhzWgaXNvs6fYRIlG2cNVy1JN1AZjVrNfHO07iVlFajGBF8NB49v1jrbZrAYGTecs%26flowName%3DGeneralOAuthFlow%26as%3DS-938499348%253A1777773966228996%26client_id%3D7081045131.apps.googleusercontent.com%26requestPath%3D%252Fsignin%252Foauth%252Fconsent%23&app_domain=https%3A%2F%2Flucid.app&rart=ANgoxcfI7rQ3KzqOSvcC79NJYBE1GJfkyC3mNk7x1szMFJ1iq0m8yzEDVK46WPUTdbVnytHlDXtmjYxNZkKA8vbZSeJE4bCetLAWz-XDGt8oToQjmKmyH9s:0
+[    6093ms] [LOG] %c%s color: red; background: yellow; font-size: 24px; 警告！ @ https://www.gstatic.com/_/mss/boq-identity/_/js/k=boq-identity.AccountsSignInUi.zh_CN.M-UzfDx4jkw.es5.O/am=Kd8AAAChEAVCBgDj__8HAAiAIGrg9SwATSAyAAAAAAAAAABgAQAAGgE/d=1/excm=_b,_tp,identifierview/ed=1/dg=0/wt=2/ujg=1/rs=AOaEmlFOvdrFFqGidhhvWR7AOi-g8ejxOQ/dti=1/m=_b,_tp:542
+[    6093ms] [LOG] %c%s font-size: 18px; 使用此控制台可能会导致攻击程序利用 Self-XSS 攻击冒充您并窃取您的信息。
+请勿输入或粘贴您不明白的代码。 @ https://www.gstatic.com/_/mss/boq-identity/_/js/k=boq-identity.AccountsSignInUi.zh_CN.M-UzfDx4jkw.es5.O/am=Kd8AAAChEAVCBgDj__8HAAiAIGrg9SwATSAyAAAAAAAAAABgAQAAGgE/d=1/excm=_b,_tp,identifierview/ed=1/dg=0/wt=2/ujg=1/rs=AOaEmlFOvdrFFqGidhhvWR7AOi-g8ejxOQ/dti=1/m=_b,_tp:542
+[    7776ms] [WARNING] [GSI_LOGGER]: Your client application uses one of the Google One Tap prompt UI status methods that may stop functioning when FedCM becomes mandatory. Refer to the migration guide to update your code accordingly and opt-in to FedCM to test your changes. Learn more: https://developers.google.com/identity/gsi/web/guides/fedcm-migration?s=dc#display_moment and https://developers.google.com/identity/gsi/web/guides/fedcm-migration?s=dc#skipped_moment @ https://static-assets.lucidchart.com/cas/4/3/dc2905d9baea79d6f26d31fcbdd5195a204bd0ffe2931f16faf6bfb4dda85e.js.gz:78
+[    7817ms] [ERROR] Not signed in with the identity provider. @ https://lucid.app/users/login#/login:0
+[   16062ms] [ERROR] [GSI_LOGGER]: FedCM get() rejects with AbortError: signal is aborted without reason @ https://static-assets.lucidchart.com/cas/4/3/dc2905d9baea79d6f26d31fcbdd5195a204bd0ffe2931f16faf6bfb4dda85e.js.gz:79
+[   18949ms] [VERBOSE] [DOM] Password field is not contained in a form: (More info: https://goo.gl/9p2vKq) %o @ https://lucid.app/users/login#/login:0
+[   28671ms] [ERROR] aulJ: XhrError: NetworkXHR Failed.
+Response: HTTP 0
+Request: POST https://users.lucid.app/accounts/loginRedirect
+    at au3$b.Kob (https://static-assets.lucidchart.com/cas/2/7/46841984db5e08b6466a21438c540bb13ea88215ed220f593f8f250a074166.js.gz:333:229)
+    at audCb (https://static-assets.lucidchart.com/cas/a/4/756906c70fef4a5435bbcc41c89006c412d430b841d6e88760894025001ffc.js.gz:230:255)
+    at aucCb (https://static-assets.lucidchart.com/cas/a/4/756906c70fef4a5435bbcc41c89006c412d430b841d6e88760894025001ffc.js.gz:226:575)
+    at aujJ (https://static-assets.lucidchart.com/cas/a/4/756906c70fef4a5435bbcc41c89006c412d430b841d6e88760894025001ffc.js.gz:226:723)
+    at au3$b.enqueue (https://static-assets.lucidchart.com/cas/a/4/756906c70fef4a5435bbcc41c89006c412d430b841d6e88760894025001ffc.js.gz:233:360)
+    at https://static-assets.lucidchart.com/cas/a/4/756906c70fef4a5435bbcc41c89006c412d430b841d6e88760894025001ffc.js.gz:234:79
+    at new x (https://static-assets.lucidchart.com/cas/b/a/6350cce1c7f451a02ec711f3b1b631ff8aa26a55f859386f4a65821e3a0e12.js.gz:17:2240)
+    at au3$b.execute (https://static-assets.lucidchart.com/cas/a/4/756906c70fef4a5435bbcc41c89006c412d430b841d6e88760894025001ffc.js.gz:234:54)
+    at au3$b.RE (https://static-assets.lucidchart.com/cas/2/7/46841984db5e08b6466a21438c540bb13ea88215ed220f593f8f250a074166.js.gz:16:321)
+    at https://static-assets.lucidchart.com/cas/b/b/e142188849d84505a25801c5b4601a66905c6f2c64fd38992773fc6738ab3b.js.gz:181:361
+    at Generator.next (<anonymous>)
+    at https://static-assets.lucidchart.com/cas/5/a/49ab4c503608033bd7dc7d36b193fe28cb1150e20af7f03a98679639719ee1.js.gz:5:196
+    at new x (https://static-assets.lucidchart.com/cas/b/a/6350cce1c7f451a02ec711f3b1b631ff8aa26a55f859386f4a65821e3a0e12.js.gz:17:2240)
+    at auKsb (https://static-assets.lucidchart.com/cas/5/a/49ab4c503608033bd7dc7d36b193fe28cb1150e20af7f03a98679639719ee1.js.gz:5:89)
+    at auK (https://static-assets.lucidchart.com/cas/5/a/49ab4c503608033bd7dc7d36b193fe28cb1150e20af7f03a98679639719ee1.js.gz:5:229)
+    at auboc (https://static-assets.lucidchart.com/cas/b/b/e142188849d84505a25801c5b4601a66905c6f2c64fd38992773fc6738ab3b.js.gz:181:325)
+    at https://static-assets.lucidchart.com/cas/b/b/e142188849d84505a25801c5b4601a66905c6f2c64fd38992773fc6738ab3b.js.gz:2101:462
+    at Generator.next (<anonymous>)
+    at https://static-assets.lucidchart.com/cas/5/a/49ab4c503608033bd7dc7d36b193fe28cb1150e20af7f03a98679639719ee1.js.gz:5:196
+    at new x (https://static-assets.lucidchart.com/cas/b/a/6350cce1c7f451a02ec711f3b1b631ff8aa26a55f859386f4a65821e3a0e12.js.gz:17:2240)
+    at auKsb (https://static-assets.lucidchart.com/cas/5/a/49ab4c503608033bd7dc7d36b193fe28cb1150e20af7f03a98679639719ee1.js.gz:5:89)
+    at auK (https://static-assets.lucidchart.com/cas/5/a/49ab4c503608033bd7dc7d36b193fe28cb1150e20af7f03a98679639719ee1.js.gz:5:229)
+    at auQ9.next (https://static-assets.lucidchart.com/cas/b/b/e142188849d84505a25801c5b4601a66905c6f2c64fd38992773fc6738ab3b.js.gz:2100:416)
+    at https://static-assets.lucidchart.com/cas/b/b/e142188849d84505a25801c5b4601a66905c6f2c64fd38992773fc6738ab3b.js.gz:2116:335 @ https://static-assets.lucidchart.com/cas/0/8/702a79314e46250041fa4859c427f62c8510a9e61c6a09e402e7bba8bdac48.js.gz:3
+[   28673ms] [ERROR] ERROR Error: Uncaught (in promise): Error: XhrError: NetworkXHR Failed.
+Response: HTTP 0
+Request: POST https://users.lucid.app/accounts/loginRedirect
+Error: XhrError: NetworkXHR Failed.
+Response: HTTP 0
+Request: POST https://users.lucid.app/accounts/loginRedirect
+    at au3$b.Kob (https://static-assets.lucidchart.com/cas/2/7/46841984db5e08b6466a21438c540bb13ea88215ed220f593f8f250a074166.js.gz:333:229)
+    at audCb (https://static-assets.lucidchart.com/cas/a/4/756906c70fef4a5435bbcc41c89006c412d430b841d6e88760894025001ffc.js.gz:230:255)
+    at aucCb (https://static-assets.lucidchart.com/cas/a/4/756906c70fef4a5435bbcc41c89006c412d430b841d6e88760894025001ffc.js.gz:226:575)
+    at aujJ (https://static-assets.lucidchart.com/cas/a/4/756906c70fef4a5435bbcc41c89006c412d430b841d6e88760894025001ffc.js.gz:226:723)
+    at au3$b.enqueue (https://static-assets.lucidchart.com/cas/a/4/756906c70fef4a5435bbcc41c89006c412d430b841d6e88760894025001ffc.js.gz:233:360)
+    at https://static-assets.lucidchart.com/cas/a/4/756906c70fef4a5435bbcc41c89006c412d430b841d6e88760894025001ffc.js.gz:234:79
+    at new x (https://static-assets.lucidchart.com/cas/b/a/6350cce1c7f451a02ec711f3b1b631ff8aa26a55f859386f4a65821e3a0e12.js.gz:17:2240)
+    at au3$b.execute (https://static-assets.lucidchart.com/cas/a/4/756906c70fef4a5435bbcc41c89006c412d430b841d6e88760894025001ffc.js.gz:234:54)
+    at au3$b.RE (https://static-assets.lucidchart.com/cas/2/7/46841984db5e08b6466a21438c540bb13ea88215ed220f593f8f250a074166.js.gz:16:321)
+    at https://static-assets.lucidchart.com/cas/b/b/e142188849d84505a25801c5b4601a66905c6f2c64fd38992773fc6738ab3b.js.gz:181:361
+    at Generator.next (<anonymous>)
+    at https://static-assets.lucidchart.com/cas/5/a/49ab4c503608033bd7dc7d36b193fe28cb1150e20af7f03a98679639719ee1.js.gz:5:196
+    at new x (https://static-assets.lucidchart.com/cas/b/a/6350cce1c7f451a02ec711f3b1b631ff8aa26a55f859386f4a65821e3a0e12.js.gz:17:2240)
+    at auKsb (https://static-assets.lucidchart.com/cas/5/a/49ab4c503608033bd7dc7d36b193fe28cb1150e20af7f03a98679639719ee1.js.gz:5:89)
+    at auK (https://static-assets.lucidchart.com/cas/5/a/49ab4c503608033bd7dc7d36b193fe28cb1150e20af7f03a98679639719ee1.js.gz:5:229)
+    at auboc (https://static-assets.lucidchart.com/cas/b/b/e142188849d84505a25801c5b4601a66905c6f2c64fd38992773fc6738ab3b.js.gz:181:325)
+    at https://static-assets.lucidchart.com/cas/b/b/e142188849d84505a25801c5b4601a66905c6f2c64fd38992773fc6738ab3b.js.gz:2101:462
+    at Generator.next (<anonymous>)
+    at https://static-assets.lucidchart.com/cas/5/a/49ab4c503608033bd7dc7d36b193fe28cb1150e20af7f03a98679639719ee1.js.gz:5:196
+    at new x (https://static-assets.lucidchart.com/cas/b/a/6350cce1c7f451a02ec711f3b1b631ff8aa26a55f859386f4a65821e3a0e12.js.gz:17:2240)
+    at auKsb (https://static-assets.lucidchart.com/cas/5/a/49ab4c503608033bd7dc7d36b193fe28cb1150e20af7f03a98679639719ee1.js.gz:5:89)
+    at auK (https://static-assets.lucidchart.com/cas/5/a/49ab4c503608033bd7dc7d36b193fe28cb1150e20af7f03a98679639719ee1.js.gz:5:229)
+    at auQ9.next (https://static-assets.lucidchart.com/cas/b/b/e142188849d84505a25801c5b4601a66905c6f2c64fd38992773fc6738ab3b.js.gz:2100:416)
+    at https://static-assets.lucidchart.com/cas/b/b/e142188849d84505a25801c5b4601a66905c6f2c64fd38992773fc6738ab3b.js.gz:2116:335
+    at au3$b.Kob (https://static-assets.lucidchart.com/cas/2/7/46841984db5e08b6466a21438c540bb13ea88215ed220f593f8f250a074166.js.gz:333:229)
+    at audCb (https://static-assets.lucidchart.com/cas/a/4/756906c70fef4a5435bbcc41c89006c412d430b841d6e88760894025001ffc.js.gz:230:255)
+    at aucCb (https://static-assets.lucidchart.com/cas/a/4/756906c70fef4a5435bbcc41c89006c412d430b841d6e88760894025001ffc.js.gz:226:575)
+    at aujJ (https://static-assets.lucidchart.com/cas/a/4/756906c70fef4a5435bbcc41c89006c412d430b841d6e88760894025001ffc.js.gz:226:723)
+    at au3$b.enqueue (https://static-assets.lucidchart.com/cas/a/4/756906c70fef4a5435bbcc41c89006c412d430b841d6e88760894025001ffc.js.gz:233:360)
+    at https://static-assets.lucidchart.com/cas/a/4/756906c70fef4a5435bbcc41c89006c412d430b841d6e88760894025001ffc.js.gz:234:79
+    at new x (https://static-assets.lucidchart.com/cas/b/a/6350cce1c7f451a02ec711f3b1b631ff8aa26a55f859386f4a65821e3a0e12.js.gz:17:2240)
+    at au3$b.execute (https://static-assets.lucidchart.com/cas/a/4/756906c70fef4a5435bbcc41c89006c412d430b841d6e88760894025001ffc.js.gz:234:54)
+    at au3$b.RE (https://static-assets.lucidchart.com/cas/2/7/46841984db5e08b6466a21438c540bb13ea88215ed220f593f8f250a074166.js.gz:16:321)
+    at https://static-assets.lucidchart.com/cas/b/b/e142188849d84505a25801c5b4601a66905c6f2c64fd38992773fc6738ab3b.js.gz:181:361
+    at Generator.next (<anonymous>)
+    at https://static-assets.lucidchart.com/cas/5/a/49ab4c503608033bd7dc7d36b193fe28cb1150e20af7f03a98679639719ee1.js.gz:5:196
+    at new x (https://static-assets.lucidchart.com/cas/b/a/6350cce1c7f451a02ec711f3b1b631ff8aa26a55f859386f4a65821e3a0e12.js.gz:17:2240)
+    at auKsb (https://static-assets.lucidchart.com/cas/5/a/49ab4c503608033bd7dc7d36b193fe28cb1150e20af7f03a98679639719ee1.js.gz:5:89)
+    at auK (https://static-assets.lucidchart.com/cas/5/a/49ab4c503608033bd7dc7d36b193fe28cb1150e20af7f03a98679639719ee1.js.gz:5:229)
+    at auboc (https://static-assets.lucidchart.com/cas/b/b/e142188849d84505a25801c5b4601a66905c6f2c64fd38992773fc6738ab3b.js.gz:181:325)
+    at https://static-assets.lucidchart.com/cas/b/b/e142188849d84505a25801c5b4601a66905c6f2c64fd38992773fc6738ab3b.js.gz:2101:462
+    at Generator.next (<anonymous>)
+    at https://static-assets.lucidchart.com/cas/5/a/49ab4c503608033bd7dc7d36b193fe28cb1150e20af7f03a98679639719ee1.js.gz:5:196
+    at new x (https://static-assets.lucidchart.com/cas/b/a/6350cce1c7f451a02ec711f3b1b631ff8aa26a55f859386f4a65821e3a0e12.js.gz:17:2240)
+    at auKsb (https://static-assets.lucidchart.com/cas/5/a/49ab4c503608033bd7dc7d36b193fe28cb1150e20af7f03a98679639719ee1.js.gz:5:89)
+    at auK (https://static-assets.lucidchart.com/cas/5/a/49ab4c503608033bd7dc7d36b193fe28cb1150e20af7f03a98679639719ee1.js.gz:5:229)
+    at auQ9.next (https://static-assets.lucidchart.com/cas/b/b/e142188849d84505a25801c5b4601a66905c6f2c64fd38992773fc6738ab3b.js.gz:2100:416)
+    at https://static-assets.lucidchart.com/cas/b/b/e142188849d84505a25801c5b4601a66905c6f2c64fd38992773fc6738ab3b.js.gz:2116:335
+    at $ (https://static-assets.lucidchart.com/cas/b/a/6350cce1c7f451a02ec711f3b1b631ff8aa26a55f859386f4a65821e3a0e12.js.gz:16:30510)
+    at https://static-assets.lucidchart.com/cas/b/a/6350cce1c7f451a02ec711f3b1b631ff8aa26a55f859386f4a65821e3a0e12.js.gz:16:29612
+    at https://static-assets.lucidchart.com/cas/b/a/6350cce1c7f451a02ec711f3b1b631ff8aa26a55f859386f4a65821e3a0e12.js.gz:16:29716
+    at u.invoke (https://static-assets.lucidchart.com/cas/b/a/6350cce1c7f451a02ec711f3b1b631ff8aa26a55f859386f4a65821e3a0e12.js.gz:16:7719)
+    at Object.onInvoke (https://static-assets.lucidchart.com/cas/a/4/756906c70fef4a5435bbcc41c89006c412d430b841d6e88760894025001ffc.js.gz:433:395)
+    at u.invoke (https://static-assets.lucidchart.com/cas/b/a/6350cce1c7f451a02ec711f3b1b631ff8aa26a55f859386f4a65821e3a0e12.js.gz:16:7659)
+    at $.run (https://static-assets.lucidchart.com/cas/b/a/6350cce1c7f451a02ec711f3b1b631ff8aa26a55f859386f4a65821e3a0e12.js.gz:16:2295)
+    at https://static-assets.lucidchart.com/cas/b/a/6350cce1c7f451a02ec711f3b1b631ff8aa26a55f859386f4a65821e3a0e12.js.gz:17:557
+    at u.invokeTask (https://static-assets.lucidchart.com/cas/b/a/6350cce1c7f451a02ec711f3b1b631ff8aa26a55f859386f4a65821e3a0e12.js.gz:16:8344)
+    at Object.onInvokeTask (https://static-assets.lucidchart.com/cas/a/4/756906c70fef4a5435bbcc41c89006c412d430b841d6e88760894025001ffc.js.gz:433:254)
+    at u.invokeTask (https://static-assets.lucidchart.com/cas/b/a/6350cce1c7f451a02ec711f3b1b631ff8aa26a55f859386f4a65821e3a0e12.js.gz:16:8265)
+    at $.runTask (https://static-assets.lucidchart.com/cas/b/a/6350cce1c7f451a02ec711f3b1b631ff8aa26a55f859386f4a65821e3a0e12.js.gz:16:2936)
+    at X (https://static-assets.lucidchart.com/cas/b/a/6350cce1c7f451a02ec711f3b1b631ff8aa26a55f859386f4a65821e3a0e12.js.gz:16:10534)
+    at p.invokeTask [as invoke] (https://static-assets.lucidchart.com/cas/b/a/6350cce1c7f451a02ec711f3b1b631ff8aa26a55f859386f4a65821e3a0e12.js.gz:16:9590)
+    at O (https://static-assets.lucidchart.com/cas/b/a/6350cce1c7f451a02ec711f3b1b631ff8aa26a55f859386f4a65821e3a0e12.js.gz:16:16552)
+    at A (https://static-assets.lucidchart.com/cas/b/a/6350cce1c7f451a02ec711f3b1b631ff8aa26a55f859386f4a65821e3a0e12.js.gz:16:16848)
+    at XMLHttpRequest.K (https://static-assets.lucidchart.com/cas/b/a/6350cce1c7f451a02ec711f3b1b631ff8aa26a55f859386f4a65821e3a0e12.js.gz:16:17106) @ https://static-assets.lucidchart.com/cas/a/4/756906c70fef4a5435bbcc41c89006c412d430b841d6e88760894025001ffc.js.gz:434
+[   28673ms] [ERROR] Failed to load resource: net::ERR_CONNECTION_CLOSED @ https://users.lucid.app/accounts/loginRedirect:0
+[   98321ms] [WARNING] [GSI_LOGGER]: Your client application uses one of the Google One Tap prompt UI status methods that may stop functioning when FedCM becomes mandatory. Refer to the migration guide to update your code accordingly and opt-in to FedCM to test your changes. Learn more: https://developers.google.com/identity/gsi/web/guides/fedcm-migration?s=dc#display_moment and https://developers.google.com/identity/gsi/web/guides/fedcm-migration?s=dc#skipped_moment @ https://static-assets.lucidchart.com/cas/4/3/dc2905d9baea79d6f26d31fcbdd5195a204bd0ffe2931f16faf6bfb4dda85e.js.gz:78
+[   98430ms] [ERROR] Not signed in with the identity provider. @ https://lucid.app/users/login#/login:0
+[  106951ms] [ERROR] [GSI_LOGGER]: FedCM get() rejects with AbortError: signal is aborted without reason @ https://static-assets.lucidchart.com/cas/4/3/dc2905d9baea79d6f26d31fcbdd5195a204bd0ffe2931f16faf6bfb4dda85e.js.gz:79
+[  107286ms] [VERBOSE] [DOM] Password field is not contained in a form: (More info: https://goo.gl/9p2vKq) %o @ https://lucid.app/users/login#/login:0

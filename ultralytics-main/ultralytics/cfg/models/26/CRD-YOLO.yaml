@@ -1,0 +1,55 @@
+# Ultralytics YOLO 🚀, AGPL-3.0 license
+# CRD-YOLO object detection model for crowded pedestrian detection.
+# Reproduces the upstream CRD-YOLO architecture with MS-PFE, RD-FPN/DySample and Detect_DyHead.
+
+# Parameters
+nc: 80 # number of classes
+scales: # model compound scaling constants
+  # [depth, width, max_channels]
+  n: [0.50, 0.25, 1024]
+  s: [0.50, 0.50, 1024]
+  m: [0.50, 1.00, 512]
+  l: [1.00, 1.00, 512]
+  x: [1.00, 1.50, 512]
+
+# CRD-YOLO backbone
+backbone:
+  # [from, repeats, module, args]
+  - [-1, 1, Conv, [64, 3, 2]] # 0-P1/2
+  - [-1, 1, Conv, [128, 3, 2]] # 1-P2/4
+  - [-1, 2, MS_PFE, [256, True]]
+  - [-1, 1, Conv, [256, 3, 2]] # 3-P3/8
+  - [-1, 2, MS_PFE, [512, True]]
+  - [-1, 1, Conv, [512, 3, 2]] # 5-P4/16
+  - [-1, 2, MS_PFE, [512, True]]
+  - [-1, 1, Conv, [1024, 3, 2]] # 7-P5/32
+  - [-1, 2, MS_PFE, [1024, True]]
+  - [-1, 1, SPPF, [1024, 5]] # 9
+  - [-1, 2, C2PSA, [1024]] # 10
+
+# CRD-YOLO head
+head:
+  - [-1, 1, Conv, [512, 1, 1]] # 11
+  - [6, 1, Conv, [512, 3, 2]] # 12
+  - [[-1, 11], 1, Concat, [1]] # 13
+  - [-1, 3, CSPStage, [512]] # 14
+
+  - [-1, 1, DySample, [2, "lp"]] # 15
+  - [4, 1, Conv, [256, 3, 2]] # 16
+  - [[15, -1, 6], 1, Concat, [1]] # 17
+  - [-1, 3, CSPStage, [512]] # 18
+
+  - [-1, 1, DySample, [2, "lp"]] # 19
+  - [[-1, 4], 1, Concat, [1]] # 20
+  - [-1, 3, CSPStage, [256]] # 21
+
+  - [-1, 1, Conv, [256, 3, 2]] # 22
+  - [[-1, 18], 1, Concat, [1]] # 23
+  - [-1, 3, CSPStage, [512]] # 24
+
+  - [18, 1, Conv, [256, 3, 2]] # 25
+  - [24, 1, Conv, [256, 3, 2]] # 26
+  - [[14, 25, -1], 1, Concat, [1]] # 27
+  - [-1, 3, CSPStage, [1024]] # 28
+
+  - [[21, 24, 28], 1, Detect_DyHead, [nc, 128, 1]] # Detect(P3, P4, P5)

@@ -1,0 +1,194 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<svg xmlns="http://www.w3.org/2000/svg" width="1418" height="1710" viewBox="0 0 1418 1710">
+<defs><marker id="arrow" viewBox="0 0 10 10" refX="9" refY="5" markerWidth="7" markerHeight="7" orient="auto-start-reverse"><path d="M 0 0 L 10 5 L 0 10 z" fill="context-stroke"/></marker></defs>
+<rect width="100%" height="100%" fill="#ffffff"/>
+<text x="520" y="58.64" text-anchor="middle" font-family="Arial, 'PingFang SC', sans-serif" font-size="24" fill="#111111">MHAF-YOLO + YOLO26-small-no-shiftwise 组件提取</text>
+<rect x="60" y="78" width="1260" height="48" rx="8" fill="#F6F6F6" stroke="#D8D8D8" stroke-width="1"/>
+<text x="690" y="106.32" text-anchor="middle" font-family="Arial, 'PingFang SC', sans-serif" font-size="12" fill="#333333">只画组件、标签与颜色；不画网络连接关系。新增区来自 ultralytics/cfg/models/26/yolo26-small-no-shiftwise.yaml。</text>
+<text x="440" y="170.76" text-anchor="middle" font-family="Arial, 'PingFang SC', sans-serif" font-size="16" fill="#111111">A. MHAF-YOLO 基础组件</text>
+<rect x="60" y="195" width="210" height="82" rx="8" fill="#FFF8E7" stroke="#E5DCC8" stroke-width="1"/>
+<text x="165" y="231.5" text-anchor="middle" font-family="Arial, 'PingFang SC', sans-serif" font-size="18" fill="#111111">Backbone 背景</text>
+<text x="165" y="253.46" text-anchor="middle" font-family="Arial, 'PingFang SC', sans-serif" font-size="18" fill="#111111">#FFF8E7</text>
+<rect x="300" y="195" width="240" height="82" rx="8" fill="#E9ECF7" stroke="#D3D9EA" stroke-width="1"/>
+<text x="420" y="231.5" text-anchor="middle" font-family="Arial, 'PingFang SC', sans-serif" font-size="18" fill="#111111">MAFPN 背景</text>
+<text x="420" y="253.46" text-anchor="middle" font-family="Arial, 'PingFang SC', sans-serif" font-size="18" fill="#111111">#E9ECF7</text>
+<rect x="570" y="195" width="210" height="82" rx="8" fill="#ECECEC" stroke="#D7D7D7" stroke-width="1"/>
+<text x="675" y="231.5" text-anchor="middle" font-family="Arial, 'PingFang SC', sans-serif" font-size="18" fill="#111111">Head 背景</text>
+<text x="675" y="253.46" text-anchor="middle" font-family="Arial, 'PingFang SC', sans-serif" font-size="18" fill="#111111">#ECECEC</text>
+<rect x="815" y="195" width="110" height="38" rx="8" fill="#FFFFFF" stroke="#FFFFFF" stroke-width="1"/>
+<text x="870" y="218.32" text-anchor="middle" font-family="Arial, 'PingFang SC', sans-serif" font-size="12" fill="#111111">Input</text>
+<rect x="945" y="195" width="78" height="38" rx="8" fill="#FFF8E7" stroke="#E5DCC8" stroke-width="1"/>
+<text x="984" y="218.32" text-anchor="middle" font-family="Arial, 'PingFang SC', sans-serif" font-size="12" fill="#111111">P2</text>
+<rect x="1036" y="195" width="78" height="38" rx="8" fill="#FFF8E7" stroke="#E5DCC8" stroke-width="1"/>
+<text x="1075" y="218.32" text-anchor="middle" font-family="Arial, 'PingFang SC', sans-serif" font-size="12" fill="#111111">P3</text>
+<rect x="1127" y="195" width="78" height="38" rx="8" fill="#FFF8E7" stroke="#E5DCC8" stroke-width="1"/>
+<text x="1166" y="218.32" text-anchor="middle" font-family="Arial, 'PingFang SC', sans-serif" font-size="12" fill="#111111">P4</text>
+<rect x="1218" y="195" width="78" height="38" rx="8" fill="#FFF8E7" stroke="#E5DCC8" stroke-width="1"/>
+<text x="1257" y="218.32" text-anchor="middle" font-family="Arial, 'PingFang SC', sans-serif" font-size="12" fill="#111111">P5</text>
+<text x="290" y="334.76" text-anchor="middle" font-family="Arial, 'PingFang SC', sans-serif" font-size="16" fill="#111111">模块块 / Blocks</text>
+<rect x="60" y="355" width="150" height="80" rx="8" fill="#F7F2E7" stroke="#8A8A8A" stroke-width="2"/>
+<text x="135" y="390.5" text-anchor="middle" font-family="Arial, 'PingFang SC', sans-serif" font-size="18" fill="#111111">RepHMS</text>
+<text x="135" y="412.46" text-anchor="middle" font-family="Arial, 'PingFang SC', sans-serif" font-size="18" fill="#111111">3 x 3</text>
+<rect x="240" y="355" width="150" height="80" rx="8" fill="#F7F2E7" stroke="#8A8A8A" stroke-width="2"/>
+<text x="315" y="390.5" text-anchor="middle" font-family="Arial, 'PingFang SC', sans-serif" font-size="18" fill="#111111">RepHMS</text>
+<text x="315" y="412.46" text-anchor="middle" font-family="Arial, 'PingFang SC', sans-serif" font-size="18" fill="#111111">5 x 5</text>
+<rect x="420" y="355" width="150" height="80" rx="8" fill="#F7F2E7" stroke="#8A8A8A" stroke-width="2"/>
+<text x="495" y="390.5" text-anchor="middle" font-family="Arial, 'PingFang SC', sans-serif" font-size="18" fill="#111111">RepHMS</text>
+<text x="495" y="412.46" text-anchor="middle" font-family="Arial, 'PingFang SC', sans-serif" font-size="18" fill="#111111">7 x 7</text>
+<rect x="600" y="355" width="150" height="80" rx="8" fill="#F7F2E7" stroke="#8A8A8A" stroke-width="2"/>
+<text x="675" y="390.5" text-anchor="middle" font-family="Arial, 'PingFang SC', sans-serif" font-size="18" fill="#111111">RepHMS</text>
+<text x="675" y="412.46" text-anchor="middle" font-family="Arial, 'PingFang SC', sans-serif" font-size="18" fill="#111111">9 x 9</text>
+<rect x="60" y="470" width="140" height="64" rx="8" fill="#CFE5B9" stroke="#7F8D78" stroke-width="2"/>
+<text x="130" y="498.19047619047615" text-anchor="middle" font-family="Arial, 'PingFang SC', sans-serif" font-size="15.238095238095237" fill="#111111">SAF</text>
+<text x="130" y="516.7809523809524" text-anchor="middle" font-family="Arial, 'PingFang SC', sans-serif" font-size="15.238095238095237" fill="#111111">#CFE5B9</text>
+<rect x="235" y="470" width="140" height="64" rx="8" fill="#CFE5B9" stroke="#7F8D78" stroke-width="2"/>
+<text x="305" y="498.19047619047615" text-anchor="middle" font-family="Arial, 'PingFang SC', sans-serif" font-size="15.238095238095237" fill="#111111">AAF</text>
+<text x="305" y="516.7809523809524" text-anchor="middle" font-family="Arial, 'PingFang SC', sans-serif" font-size="15.238095238095237" fill="#111111">#CFE5B9</text>
+<rect x="410" y="470" width="340" height="64" rx="8" fill="#FFFFFF" stroke="#D1D1D1" stroke-width="1"/>
+<text x="580" y="507.48571428571427" text-anchor="middle" font-family="Arial, 'PingFang SC', sans-serif" font-size="15.238095238095237" fill="#111111">文字标签：Input / P2-P5 / MHAF-YOLO / Backbone / MAFPN / Head / ...</text>
+<text x="300" y="589.76" text-anchor="middle" font-family="Arial, 'PingFang SC', sans-serif" font-size="16" fill="#111111">多色特征图堆叠 / Feature-map stacks</text>
+<rect x="75" y="625" width="46" height="112" rx="8" fill="#B9DDEE" stroke="#B9DDEE" stroke-width="1"/>
+<rect x="98" y="615" width="46" height="112" rx="8" fill="#B8D7A5" stroke="#B8D7A5" stroke-width="1"/>
+<rect x="121" y="610" width="46" height="112" rx="8" fill="#EFC0BC" stroke="#EFC0BC" stroke-width="1"/>
+<rect x="144" y="608" width="46" height="112" rx="8" fill="#E99A94" stroke="#E99A94" stroke-width="1"/>
+<rect x="167" y="603" width="46" height="112" rx="8" fill="#B86A61" stroke="#B86A61" stroke-width="1"/>
+<rect x="60" y="755" width="190" height="52" rx="8" fill="#FFFFFF" stroke="#D1D1D1" stroke-width="1"/>
+<text x="155" y="777.9047619047619" text-anchor="middle" font-family="Arial, 'PingFang SC', sans-serif" font-size="12.38095238095238" fill="#111111">全通道堆叠</text>
+<text x="155" y="793.0095238095238" text-anchor="middle" font-family="Arial, 'PingFang SC', sans-serif" font-size="12.38095238095238" fill="#111111">blue/green/pink/red</text>
+<rect x="315" y="635" width="44" height="95" rx="8" fill="#B9DDEE" stroke="#B9DDEE" stroke-width="1"/>
+<rect x="337" y="625" width="44" height="95" rx="8" fill="#B8D7A5" stroke="#B8D7A5" stroke-width="1"/>
+<rect x="359" y="620" width="44" height="95" rx="8" fill="#EFC0BC" stroke="#EFC0BC" stroke-width="1"/>
+<rect x="381" y="618" width="44" height="95" rx="8" fill="#E99A94" stroke="#E99A94" stroke-width="1"/>
+<rect x="403" y="613" width="44" height="95" rx="8" fill="#B86A61" stroke="#B86A61" stroke-width="1"/>
+<rect x="300" y="755" width="180" height="52" rx="8" fill="#FFFFFF" stroke="#D1D1D1" stroke-width="1"/>
+<text x="390" y="777.9047619047619" text-anchor="middle" font-family="Arial, 'PingFang SC', sans-serif" font-size="12.38095238095238" fill="#111111">中等尺寸堆叠</text>
+<text x="390" y="793.0095238095238" text-anchor="middle" font-family="Arial, 'PingFang SC', sans-serif" font-size="12.38095238095238" fill="#111111">同色系</text>
+<rect x="555" y="655" width="38" height="78" rx="8" fill="#B9DDEE" stroke="#B9DDEE" stroke-width="1"/>
+<rect x="577" y="642" width="38" height="78" rx="8" fill="#B8D7A5" stroke="#B8D7A5" stroke-width="1"/>
+<rect x="599" y="637" width="38" height="78" rx="8" fill="#8DAE7A" stroke="#8DAE7A" stroke-width="1"/>
+<rect x="535" y="755" width="165" height="52" rx="8" fill="#FFFFFF" stroke="#D1D1D1" stroke-width="1"/>
+<text x="617.5" y="777.9047619047619" text-anchor="middle" font-family="Arial, 'PingFang SC', sans-serif" font-size="12.38095238095238" fill="#111111">蓝绿缩减堆叠</text>
+<text x="617.5" y="793.0095238095238" text-anchor="middle" font-family="Arial, 'PingFang SC', sans-serif" font-size="12.38095238095238" fill="#111111">#B9DDEE / #8DAE7A</text>
+<text x="1040" y="334.76" text-anchor="middle" font-family="Arial, 'PingFang SC', sans-serif" font-size="16" fill="#111111">Head / Loss 组件</text>
+<rect x="875" y="365" width="54" height="120" rx="8" fill="#A49DBA" stroke="#A49DBA" stroke-width="1"/>
+<rect x="900" y="345" width="70" height="160" rx="8" fill="#837C9D" stroke="#837C9D" stroke-width="1"/>
+<rect x="1010" y="400" width="190" height="52" rx="8" fill="#FFFFFF" stroke="#D1D1D1" stroke-width="1"/>
+<text x="1105" y="422.9047619047619" text-anchor="middle" font-family="Arial, 'PingFang SC', sans-serif" font-size="12.38095238095238" fill="#111111">紫色 Head 特征块</text>
+<text x="1105" y="438.00952380952384" text-anchor="middle" font-family="Arial, 'PingFang SC', sans-serif" font-size="12.38095238095238" fill="#111111">#837C9D</text>
+<rect x="860" y="545" width="230" height="44" rx="8" fill="#D7C6E3" stroke="#C7B7D5" stroke-width="1"/>
+<text x="975" y="571.32" text-anchor="middle" font-family="Arial, 'PingFang SC', sans-serif" font-size="12" fill="#111111">one-to-many Head</text>
+<rect x="860" y="605" width="230" height="44" rx="8" fill="#D7C6E3" stroke="#C7B7D5" stroke-width="1"/>
+<text x="975" y="631.32" text-anchor="middle" font-family="Arial, 'PingFang SC', sans-serif" font-size="12" fill="#111111">one-to-one Head</text>
+<rect x="1130" y="535" width="150" height="44" rx="8" fill="#BFBFBF" stroke="#BFBFBF" stroke-width="1"/>
+<text x="1205" y="561.32" text-anchor="middle" font-family="Arial, 'PingFang SC', sans-serif" font-size="12" fill="#111111">o2m loss</text>
+<rect x="1130" y="685" width="150" height="44" rx="8" fill="#BFBFBF" stroke="#BFBFBF" stroke-width="1"/>
+<text x="1205" y="711.32" text-anchor="middle" font-family="Arial, 'PingFang SC', sans-serif" font-size="12" fill="#111111">o2o loss</text>
+<text x="1205" y="640.64" text-anchor="middle" font-family="Arial, 'PingFang SC', sans-serif" font-size="24" fill="#111111">...</text>
+<text x="1040" y="779.76" text-anchor="middle" font-family="Arial, 'PingFang SC', sans-serif" font-size="16" fill="#111111">图例箭头颜色 / Legend colors</text>
+<rect x="980" y="800" width="230" height="32" rx="8" fill="#FFFFFF" stroke="#FFFFFF" stroke-width="1"/>
+<text x="1095" y="820.32" text-anchor="middle" font-family="Arial, 'PingFang SC', sans-serif" font-size="12" fill="#111111">upsample  #D11F1F</text>
+<rect x="980" y="848" width="230" height="32" rx="8" fill="#FFFFFF" stroke="#FFFFFF" stroke-width="1"/>
+<text x="1095" y="868.32" text-anchor="middle" font-family="Arial, 'PingFang SC', sans-serif" font-size="12" fill="#111111">downsample  #A7C9F0</text>
+<rect x="980" y="896" width="230" height="32" rx="8" fill="#FFFFFF" stroke="#FFFFFF" stroke-width="1"/>
+<text x="1095" y="916.32" text-anchor="middle" font-family="Arial, 'PingFang SC', sans-serif" font-size="12" fill="#111111">copy  #000000</text>
+<text x="200" y="884.76" text-anchor="middle" font-family="Arial, 'PingFang SC', sans-serif" font-size="16" fill="#111111">基础颜色板 / Base palette</text>
+<rect x="60" y="905" width="130" height="40" rx="8" fill="#FFF8E7" stroke="#C9C0AA" stroke-width="1"/>
+<text x="125" y="929.32" text-anchor="middle" font-family="Arial, 'PingFang SC', sans-serif" font-size="12" fill="#111111">#FFF8E7</text>
+<rect x="205" y="905" width="130" height="40" rx="8" fill="#E9ECF7" stroke="#C7CEE2" stroke-width="1"/>
+<text x="270" y="929.32" text-anchor="middle" font-family="Arial, 'PingFang SC', sans-serif" font-size="12" fill="#111111">#E9ECF7</text>
+<rect x="350" y="905" width="130" height="40" rx="8" fill="#ECECEC" stroke="#CFCFCF" stroke-width="1"/>
+<text x="415" y="929.32" text-anchor="middle" font-family="Arial, 'PingFang SC', sans-serif" font-size="12" fill="#111111">#ECECEC</text>
+<rect x="495" y="905" width="130" height="40" rx="8" fill="#F7F2E7" stroke="#CFC5B5" stroke-width="1"/>
+<text x="560" y="929.32" text-anchor="middle" font-family="Arial, 'PingFang SC', sans-serif" font-size="12" fill="#111111">#F7F2E7</text>
+<rect x="640" y="905" width="130" height="40" rx="8" fill="#CFE5B9" stroke="#9BB289" stroke-width="1"/>
+<text x="705" y="929.32" text-anchor="middle" font-family="Arial, 'PingFang SC', sans-serif" font-size="12" fill="#111111">#CFE5B9</text>
+<rect x="785" y="905" width="130" height="40" rx="8" fill="#B9DDEE" stroke="#8DB7CB" stroke-width="1"/>
+<text x="850" y="929.32" text-anchor="middle" font-family="Arial, 'PingFang SC', sans-serif" font-size="12" fill="#111111">#B9DDEE</text>
+<rect x="930" y="905" width="130" height="40" rx="8" fill="#B86A61" stroke="#984E48" stroke-width="1"/>
+<text x="995" y="929.32" text-anchor="middle" font-family="Arial, 'PingFang SC', sans-serif" font-size="12" fill="#FFFFFF">#B86A61</text>
+<rect x="1075" y="905" width="130" height="40" rx="8" fill="#837C9D" stroke="#67617F" stroke-width="1"/>
+<text x="1140" y="929.32" text-anchor="middle" font-family="Arial, 'PingFang SC', sans-serif" font-size="12" fill="#FFFFFF">#837C9D</text>
+<text x="470" y="1035.64" text-anchor="middle" font-family="Arial, 'PingFang SC', sans-serif" font-size="24" fill="#111111">B. yolo26-small-no-shiftwise.yaml 需要补充的组件</text>
+<rect x="60" y="1052" width="1260" height="50" rx="8" fill="#F6F6F6" stroke="#D8D8D8" stroke-width="1"/>
+<text x="690" y="1081.32" text-anchor="middle" font-family="Arial, 'PingFang SC', sans-serif" font-size="12" fill="#333333">YAML 模块集合：Conv / RepHMS(use_depthwise=False) / SPPF / C2PSA / SAF / FreqFusion / CoordAtt / AAF / Detect。Conv 与 SAF/AAF/RepHMS 复用，但新增 no-shiftwise 标注。</text>
+<text x="270" y="1149.76" text-anchor="middle" font-family="Arial, 'PingFang SC', sans-serif" font-size="16" fill="#111111">核心算子 / Operators</text>
+<rect x="60" y="1170" width="160" height="86" rx="8" fill="#DDEBF7" stroke="#8DB7CB" stroke-width="2"/>
+<text x="140" y="1197.52" text-anchor="middle" font-family="Arial, 'PingFang SC', sans-serif" font-size="18" fill="#111111">Conv</text>
+<text x="140" y="1219.48" text-anchor="middle" font-family="Arial, 'PingFang SC', sans-serif" font-size="18" fill="#111111">3 x 3 / s=2</text>
+<text x="140" y="1241.44" text-anchor="middle" font-family="Arial, 'PingFang SC', sans-serif" font-size="18" fill="#111111">C:64-1024</text>
+<rect x="245" y="1170" width="205" height="86" rx="8" fill="#F7F2E7" stroke="#B8611E" stroke-width="2"/>
+<text x="347.5" y="1197.52" text-anchor="middle" font-family="Arial, 'PingFang SC', sans-serif" font-size="18" fill="#111111">RepHMS baseline</text>
+<text x="347.5" y="1219.48" text-anchor="middle" font-family="Arial, 'PingFang SC', sans-serif" font-size="18" fill="#111111">k=3/5/7/9</text>
+<text x="347.5" y="1241.44" text-anchor="middle" font-family="Arial, 'PingFang SC', sans-serif" font-size="18" fill="#111111">use_depthwise=False</text>
+<rect x="475" y="1170" width="160" height="86" rx="8" fill="#FADFC2" stroke="#D09B5D" stroke-width="2"/>
+<text x="555" y="1197.52" text-anchor="middle" font-family="Arial, 'PingFang SC', sans-serif" font-size="18" fill="#111111">SPPF</text>
+<text x="555" y="1219.48" text-anchor="middle" font-family="Arial, 'PingFang SC', sans-serif" font-size="18" fill="#111111">k=5, n=3</text>
+<text x="555" y="1241.44" text-anchor="middle" font-family="Arial, 'PingFang SC', sans-serif" font-size="18" fill="#111111">fast pooling</text>
+<rect x="660" y="1170" width="170" height="86" rx="8" fill="#D9D2E9" stroke="#8B7BAE" stroke-width="2"/>
+<text x="745" y="1197.52" text-anchor="middle" font-family="Arial, 'PingFang SC', sans-serif" font-size="18" fill="#111111">C2PSA</text>
+<text x="745" y="1219.48" text-anchor="middle" font-family="Arial, 'PingFang SC', sans-serif" font-size="18" fill="#111111">PSA attention</text>
+<text x="745" y="1241.44" text-anchor="middle" font-family="Arial, 'PingFang SC', sans-serif" font-size="18" fill="#111111">repeats 4 -&gt; 2(s)</text>
+<rect x="855" y="1170" width="190" height="86" rx="8" fill="#CFE2F3" stroke="#6FA8DC" stroke-width="2"/>
+<text x="950" y="1197.52" text-anchor="middle" font-family="Arial, 'PingFang SC', sans-serif" font-size="18" fill="#111111">FreqFusion</text>
+<text x="950" y="1219.48" text-anchor="middle" font-family="Arial, 'PingFang SC', sans-serif" font-size="18" fill="#111111">frequency-aware</text>
+<text x="950" y="1241.44" text-anchor="middle" font-family="Arial, 'PingFang SC', sans-serif" font-size="18" fill="#111111">ALPF / AHPF masks</text>
+<rect x="1070" y="1170" width="170" height="86" rx="8" fill="#E2F0D9" stroke="#93C47D" stroke-width="2"/>
+<text x="1155" y="1197.52" text-anchor="middle" font-family="Arial, 'PingFang SC', sans-serif" font-size="18" fill="#111111">CoordAtt</text>
+<text x="1155" y="1219.48" text-anchor="middle" font-family="Arial, 'PingFang SC', sans-serif" font-size="18" fill="#111111">coordinate attention</text>
+<text x="1155" y="1241.44" text-anchor="middle" font-family="Arial, 'PingFang SC', sans-serif" font-size="18" fill="#111111">H/W positional cues</text>
+<rect x="60" y="1290" width="180" height="86" rx="8" fill="#D7C6E3" stroke="#8B7BAE" stroke-width="2"/>
+<text x="150" y="1317.52" text-anchor="middle" font-family="Arial, 'PingFang SC', sans-serif" font-size="18" fill="#111111">Detect</text>
+<text x="150" y="1339.48" text-anchor="middle" font-family="Arial, 'PingFang SC', sans-serif" font-size="18" fill="#111111">P2,P3,P4,P5</text>
+<text x="150" y="1361.44" text-anchor="middle" font-family="Arial, 'PingFang SC', sans-serif" font-size="18" fill="#111111">nc=80 / reg_max=1</text>
+<rect x="265" y="1290" width="270" height="86" rx="8" fill="#EFEFEF" stroke="#B8611E" stroke-width="2" stroke-dasharray="8 5"/>
+<text x="400" y="1317.52" text-anchor="middle" font-family="Arial, 'PingFang SC', sans-serif" font-size="18" fill="#333333">Disabled in this YAML</text>
+<text x="400" y="1339.48" text-anchor="middle" font-family="Arial, 'PingFang SC', sans-serif" font-size="18" fill="#333333">ShiftwiseConv path</text>
+<text x="400" y="1361.44" text-anchor="middle" font-family="Arial, 'PingFang SC', sans-serif" font-size="18" fill="#333333">large-kernel depthwise path</text>
+<rect x="560" y="1290" width="300" height="86" rx="8" fill="#F6F6F6" stroke="#BFBFBF" stroke-width="2"/>
+<text x="710" y="1317.52" text-anchor="middle" font-family="Arial, 'PingFang SC', sans-serif" font-size="18" fill="#111111">Global config</text>
+<text x="710" y="1339.48" text-anchor="middle" font-family="Arial, 'PingFang SC', sans-serif" font-size="18" fill="#111111">end2end=False / prog_loss=False</text>
+<text x="710" y="1361.44" text-anchor="middle" font-family="Arial, 'PingFang SC', sans-serif" font-size="18" fill="#111111">standard NMS inference</text>
+<rect x="885" y="1290" width="355" height="86" rx="8" fill="#FFFFFF" stroke="#D1D1D1" stroke-width="1"/>
+<text x="1062.5" y="1317.52" text-anchor="middle" font-family="Arial, 'PingFang SC', sans-serif" font-size="18" fill="#111111">Scale presets</text>
+<text x="1062.5" y="1339.48" text-anchor="middle" font-family="Arial, 'PingFang SC', sans-serif" font-size="18" fill="#111111">n [0.50,0.25,1024]  s [0.50,0.50,1024]</text>
+<text x="1062.5" y="1361.44" text-anchor="middle" font-family="Arial, 'PingFang SC', sans-serif" font-size="18" fill="#111111">m [0.50,1.00,512]  l [1.00,1.00,512]  x [1.00,1.50,512]</text>
+<text x="310" y="1429.76" text-anchor="middle" font-family="Arial, 'PingFang SC', sans-serif" font-size="16" fill="#111111">FreqFusion 参数形态 / Variants</text>
+<rect x="60" y="1450" width="180" height="58" rx="8" fill="#CFE2F3" stroke="#6FA8DC" stroke-width="1"/>
+<text x="150" y="1475.547619047619" text-anchor="middle" font-family="Arial, 'PingFang SC', sans-serif" font-size="13.809523809523808" fill="#111111">FreqFusion [512]</text>
+<text x="150" y="1492.395238095238" text-anchor="middle" font-family="Arial, 'PingFang SC', sans-serif" font-size="13.809523809523808" fill="#111111">P5 -&gt; P4</text>
+<rect x="265" y="1450" width="180" height="58" rx="8" fill="#CFE2F3" stroke="#6FA8DC" stroke-width="1"/>
+<text x="355" y="1475.547619047619" text-anchor="middle" font-family="Arial, 'PingFang SC', sans-serif" font-size="13.809523809523808" fill="#111111">FreqFusion [256]</text>
+<text x="355" y="1492.395238095238" text-anchor="middle" font-family="Arial, 'PingFang SC', sans-serif" font-size="13.809523809523808" fill="#111111">P4 -&gt; P3</text>
+<rect x="470" y="1450" width="260" height="58" rx="8" fill="#CFE2F3" stroke="#6FA8DC" stroke-width="1"/>
+<text x="600" y="1475.547619047619" text-anchor="middle" font-family="Arial, 'PingFang SC', sans-serif" font-size="13.809523809523808" fill="#111111">FreqFusion [128,5,3,1,3,1,32]</text>
+<text x="600" y="1492.395238095238" text-anchor="middle" font-family="Arial, 'PingFang SC', sans-serif" font-size="13.809523809523808" fill="#111111">P3 -&gt; P2 detailed args</text>
+<text x="990" y="1429.76" text-anchor="middle" font-family="Arial, 'PingFang SC', sans-serif" font-size="16" fill="#111111">尺度标签 / Feature levels</text>
+<rect x="780" y="1450" width="98" height="48" rx="8" fill="#DDEBF7" stroke="#8DB7CB" stroke-width="1"/>
+<text x="829" y="1478.32" text-anchor="middle" font-family="Arial, 'PingFang SC', sans-serif" font-size="12" fill="#111111">P1 / 2</text>
+<rect x="895" y="1450" width="98" height="48" rx="8" fill="#FFF8E7" stroke="#E5DCC8" stroke-width="1"/>
+<text x="944" y="1478.32" text-anchor="middle" font-family="Arial, 'PingFang SC', sans-serif" font-size="12" fill="#111111">P2 / 4</text>
+<rect x="1010" y="1450" width="98" height="48" rx="8" fill="#E9ECF7" stroke="#D3D9EA" stroke-width="1"/>
+<text x="1059" y="1478.32" text-anchor="middle" font-family="Arial, 'PingFang SC', sans-serif" font-size="12" fill="#111111">P3 / 8</text>
+<rect x="1125" y="1450" width="98" height="48" rx="8" fill="#ECECEC" stroke="#D7D7D7" stroke-width="1"/>
+<text x="1174" y="1478.32" text-anchor="middle" font-family="Arial, 'PingFang SC', sans-serif" font-size="12" fill="#111111">P4 / 16</text>
+<rect x="1240" y="1450" width="98" height="48" rx="8" fill="#D7C6E3" stroke="#C7B7D5" stroke-width="1"/>
+<text x="1289" y="1478.32" text-anchor="middle" font-family="Arial, 'PingFang SC', sans-serif" font-size="12" fill="#111111">P5 / 32</text>
+<text x="240" y="1569.76" text-anchor="middle" font-family="Arial, 'PingFang SC', sans-serif" font-size="16" fill="#111111">YOLO26 新增颜色板 / Added palette</text>
+<rect x="60" y="1590" width="140" height="40" rx="8" fill="#DDEBF7" stroke="#8DB7CB" stroke-width="1"/>
+<text x="130" y="1614.32" text-anchor="middle" font-family="Arial, 'PingFang SC', sans-serif" font-size="12" fill="#111111">Conv #DDEBF7</text>
+<rect x="220" y="1590" width="140" height="40" rx="8" fill="#FADFC2" stroke="#D09B5D" stroke-width="1"/>
+<text x="290" y="1614.32" text-anchor="middle" font-family="Arial, 'PingFang SC', sans-serif" font-size="12" fill="#111111">SPPF #FADFC2</text>
+<rect x="380" y="1590" width="150" height="40" rx="8" fill="#D9D2E9" stroke="#8B7BAE" stroke-width="1"/>
+<text x="455" y="1614.32" text-anchor="middle" font-family="Arial, 'PingFang SC', sans-serif" font-size="12" fill="#111111">C2PSA #D9D2E9</text>
+<rect x="550" y="1590" width="170" height="40" rx="8" fill="#CFE2F3" stroke="#6FA8DC" stroke-width="1"/>
+<text x="635" y="1614.32" text-anchor="middle" font-family="Arial, 'PingFang SC', sans-serif" font-size="12" fill="#111111">FreqFusion #CFE2F3</text>
+<rect x="740" y="1590" width="155" height="40" rx="8" fill="#E2F0D9" stroke="#93C47D" stroke-width="1"/>
+<text x="817.5" y="1614.32" text-anchor="middle" font-family="Arial, 'PingFang SC', sans-serif" font-size="12" fill="#111111">CoordAtt #E2F0D9</text>
+<rect x="915" y="1590" width="150" height="40" rx="8" fill="#D7C6E3" stroke="#8B7BAE" stroke-width="1"/>
+<text x="990" y="1614.32" text-anchor="middle" font-family="Arial, 'PingFang SC', sans-serif" font-size="12" fill="#111111">Detect #D7C6E3</text>
+<rect x="1085" y="1590" width="180" height="40" rx="8" fill="#EFEFEF" stroke="#B8611E" stroke-width="1" stroke-dasharray="8 5"/>
+<text x="1175" y="1614.32" text-anchor="middle" font-family="Arial, 'PingFang SC', sans-serif" font-size="12" fill="#111111">Disabled #EFEFEF</text>
+<line x1="860" y1="816" x2="960" y2="816" stroke="#D11F1F" stroke-width="2" marker-end="url(#arrow)"/>
+<line x1="860" y1="864" x2="960" y2="864" stroke="#A7C9F0" stroke-width="2" marker-end="url(#arrow)"/>
+<line x1="860" y1="912" x2="960" y2="912" stroke="#000000" stroke-width="2" marker-end="url(#arrow)"/>
+</svg>

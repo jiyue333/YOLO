@@ -44,13 +44,17 @@ __all__ = (
     "CBFuse",
     "CBLinear",
     "CoordAtt",
+    "CSPStage",
     "ContrastiveHead",
+    "DySample",
     "FreqFusion",
     "GhostBottleneck",
     "HGBlock",
     "HGStem",
     "ImagePoolingAttn",
     "Proto",
+    "MS_PFE",
+    "PFE",
     "RepC3",
     "RepHMS",
     "RepNCSPELAN4",
@@ -908,6 +912,191 @@ class C2f(nn.Module):
         y = [y[0], y[1]]
         y.extend(m(y[-1]) for m in self.m)
         return self.cv2(torch.cat(y, 1))
+
+
+class PFE(nn.Module):
+    """Partial Feature Extractor used by CRD-YOLO MS-PFE blocks."""
+
+    def __init__(self, c1: int):
+        """Initialize a serialized 3/5/7-kernel partial feature extractor."""
+        super().__init__()
+        self.conv1 = Conv(c1, c1, k=3)
+        self.conv2 = Conv(c1 // 2, c1 // 2, k=5, g=c1 // 2)
+        self.conv3 = Conv(c1 // 4, c1 // 4, k=7, g=c1 // 4)
+        self.conv4 = Conv(c1, c1, k=1)
+
+    def forward(self, x: torch.Tensor) -> torch.Tensor:
+        """Apply partial multi-scale kernels and residual fusion."""
+        y1, y2 = self.conv1(x).chunk(2, dim=1)
+        y3, y4 = self.conv2(y1).chunk(2, dim=1)
+        return self.conv4(torch.cat((self.conv3(y3), y4, y2), dim=1)) + x
+
+
+class MS_PFE(C2f):
+    """CRD-YOLO Multi-Scale Partial Feature Extractor built on the C2f scaffold."""
+
+    def __init__(self, c1: int, c2: int, n: int = 1, shortcut: bool = False, g: int = 1, e: float = 0.5):
+        """Initialize MS-PFE by replacing C2f bottlenecks with PFE units."""
+        super().__init__(c1, c2, n, shortcut, g, e)
+        self.m = nn.ModuleList(PFE(self.c) for _ in range(n))
+
+
+class BasicBlock_3x3_Reverse(nn.Module):
+    """RepConv-first 3x3 residual block used inside CRD-YOLO CSPStage."""
+
+    def __init__(self, c1: int, hidden_ratio: float, c2: int, shortcut: bool = True):
+        """Initialize a reverse basic block with a hidden expansion ratio."""
+        super().__init__()
+        if c1 != c2:
+            raise ValueError(f"BasicBlock_3x3_Reverse requires c1 == c2, got {c1} and {c2}.")
+        c_ = int(c1 * hidden_ratio)
+        self.conv1 = Conv(c_, c2, 3)
+        self.conv2 = RepConv(c1, c_, 3)
+        self.shortcut = shortcut
+
+    def forward(self, x: torch.Tensor) -> torch.Tensor:
+        """Apply the reverse block and optional residual connection."""
+        y = self.conv1(self.conv2(x))
+        return x + y if self.shortcut else y
+
+
+class SPP_Block(nn.Module):
+    """Small SPP helper retained for CSPStage compatibility."""
+
+    def __init__(self, c1: int, c2: int, k: int, pool_size: tuple[int, ...] = (5, 9, 13)):
+        """Initialize SPP pooling branches followed by a projection convolution."""
+        super().__init__()
+        self.pool = nn.ModuleList(nn.MaxPool2d(kernel_size=s, stride=1, padding=s // 2) for s in pool_size)
+        self.conv = Conv(c1, c2, k)
+
+    def forward(self, x: torch.Tensor) -> torch.Tensor:
+        """Concatenate SPP branches and project them."""
+        return self.conv(torch.cat([x, *(pool(x) for pool in self.pool)], dim=1))
+
+
+class CSPStage(nn.Module):
+    """CRD-YOLO reparameterized CSP stage for RD-FPN feature fusion."""
+
+    def __init__(
+        self,
+        c1: int,
+        c2: int,
+        n: int,
+        block_fn: str = "BasicBlock_3x3_Reverse",
+        hidden_ratio: float = 1.0,
+        act: str = "silu",
+        spp: bool = False,
+    ):
+        """Initialize CRD-YOLO CSPStage.
+
+        The ``act`` argument is accepted for compatibility with the upstream YAML interface.
+        """
+        super().__init__()
+        if block_fn != "BasicBlock_3x3_Reverse":
+            raise NotImplementedError(f"Unsupported CSPStage block_fn={block_fn!r}.")
+        if spp:
+            raise NotImplementedError("CSPStage spp=True is not used by CRD-YOLO and is not supported here.")
+        c_first = c2 // 2
+        c_mid = c2 - c_first
+        self.conv1 = Conv(c1, c_first, 1)
+        self.conv2 = Conv(c1, c_mid, 1)
+        self.blocks = nn.ModuleList(BasicBlock_3x3_Reverse(c_mid, hidden_ratio, c_mid, shortcut=True) for _ in range(n))
+        self.conv3 = Conv(c_mid * n + c_first, c2, 1)
+
+    def forward(self, x: torch.Tensor) -> torch.Tensor:
+        """Fuse a bypass branch with staged reparameterized residual features."""
+        y = self.conv2(x)
+        outputs = [self.conv1(x)]
+        for block in self.blocks:
+            y = block(y)
+            outputs.append(y)
+        return self.conv3(torch.cat(outputs, dim=1))
+
+
+class DySample(nn.Module):
+    """Content-aware dynamic upsampling from CRD-YOLO RD-FPN."""
+
+    def __init__(self, c1: int, scale: int = 2, style: str = "lp", groups: int = 4, dyscope: bool = False):
+        """Initialize DySample.
+
+        Args follow the upstream implementation: input channels, scale, style, groups and optional scope gating.
+        """
+        super().__init__()
+        self.scale = scale
+        self.style = style
+        self.groups = groups
+        if style not in {"lp", "pl"}:
+            raise ValueError(f"DySample style must be 'lp' or 'pl', got {style!r}.")
+        if style == "pl":
+            if c1 < scale**2 or c1 % scale**2:
+                raise ValueError(f"DySample style='pl' requires channels divisible by scale^2, got c1={c1}.")
+            c1 = c1 // scale**2
+            c2 = 2 * groups
+        else:
+            c2 = 2 * groups * scale**2
+        if c1 < groups or c1 % groups:
+            raise ValueError(f"DySample channels {c1} must be divisible by groups={groups}.")
+        self.offset = nn.Conv2d(c1, c2, 1)
+        nn.init.normal_(self.offset.weight, std=0.001)
+        nn.init.constant_(self.offset.bias, 0)
+        if dyscope:
+            self.scope = nn.Conv2d(c1, c2, 1)
+            nn.init.constant_(self.scope.weight, 0)
+            nn.init.constant_(self.scope.bias, 0)
+        self.register_buffer("init_pos", self._init_pos())
+
+    def _init_pos(self) -> torch.Tensor:
+        """Create the fixed initial sampling offsets."""
+        h = torch.arange((-self.scale + 1) / 2, (self.scale - 1) / 2 + 1) / self.scale
+        return torch.stack(torch.meshgrid([h, h], indexing="ij")).transpose(1, 2).repeat(1, self.groups, 1).reshape(
+            1, -1, 1, 1
+        )
+
+    def sample(self, x: torch.Tensor, offset: torch.Tensor) -> torch.Tensor:
+        """Sample input features with learned offsets."""
+        b, _, h, w = offset.shape
+        offset = offset.view(b, 2, -1, h, w)
+        coords_h = torch.arange(h, dtype=x.dtype, device=x.device) + 0.5
+        coords_w = torch.arange(w, dtype=x.dtype, device=x.device) + 0.5
+        coords = (
+            torch.stack(torch.meshgrid([coords_w, coords_h], indexing="xy"))
+            .transpose(1, 2)
+            .unsqueeze(1)
+            .unsqueeze(0)
+        )
+        normalizer = torch.tensor([w, h], dtype=x.dtype, device=x.device).view(1, 2, 1, 1, 1)
+        coords = 2 * (coords + offset) / normalizer - 1
+        coords = (
+            F.pixel_shuffle(coords.view(b, -1, h, w), self.scale)
+            .view(b, 2, -1, self.scale * h, self.scale * w)
+            .permute(0, 2, 3, 4, 1)
+            .contiguous()
+            .flatten(0, 1)
+        )
+        return F.grid_sample(
+            x.reshape(b * self.groups, -1, h, w), coords, mode="bilinear", align_corners=False, padding_mode="border"
+        ).reshape(b, -1, self.scale * h, self.scale * w)
+
+    def forward_lp(self, x: torch.Tensor) -> torch.Tensor:
+        """Upsample from low-resolution positions."""
+        if hasattr(self, "scope"):
+            offset = self.offset(x) * self.scope(x).sigmoid() * 0.5 + self.init_pos
+        else:
+            offset = self.offset(x) * 0.25 + self.init_pos
+        return self.sample(x, offset)
+
+    def forward_pl(self, x: torch.Tensor) -> torch.Tensor:
+        """Upsample after pixel-shuffle position rearrangement."""
+        x_ = F.pixel_shuffle(x, self.scale)
+        if hasattr(self, "scope"):
+            offset = F.pixel_unshuffle(self.offset(x_) * self.scope(x_).sigmoid(), self.scale) * 0.5 + self.init_pos
+        else:
+            offset = F.pixel_unshuffle(self.offset(x_), self.scale) * 0.25 + self.init_pos
+        return self.sample(x, offset)
+
+    def forward(self, x: torch.Tensor) -> torch.Tensor:
+        """Apply DySample upsampling."""
+        return self.forward_pl(x) if self.style == "pl" else self.forward_lp(x)
 
 
 class C3(nn.Module):
