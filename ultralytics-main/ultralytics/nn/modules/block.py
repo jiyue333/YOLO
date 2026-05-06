@@ -1059,7 +1059,7 @@ class DySample(nn.Module):
         coords_h = torch.arange(h, dtype=x.dtype, device=x.device) + 0.5
         coords_w = torch.arange(w, dtype=x.dtype, device=x.device) + 0.5
         coords = (
-            torch.stack(torch.meshgrid([coords_w, coords_h], indexing="xy"))
+            torch.stack(torch.meshgrid([coords_w, coords_h], indexing="ij"))
             .transpose(1, 2)
             .unsqueeze(1)
             .unsqueeze(0)
