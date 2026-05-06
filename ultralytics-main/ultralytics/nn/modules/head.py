@@ -15,7 +15,18 @@ from ultralytics.utils import NOT_MACOS14
 from ultralytics.utils.tal import dist2bbox, dist2rbox, make_anchors
 from ultralytics.utils.torch_utils import TORCH_1_11, fuse_conv_and_bn, smart_inference_mode
 
-from .block import DFL, SAVPE, BNContrastiveHead, ContrastiveHead, Proto, Proto26, RealNVP, Residual, SwiGLUFFN
+from .block import (
+    DFL,
+    SAVPE,
+    BNContrastiveHead,
+    ContrastiveHead,
+    Proto,
+    Proto26,
+    RealNVP,
+    Residual,
+    SwiGLUFFN,
+    UniRepLKNetBlock,
+)
 from .conv import Conv, DWConv
 from .transformer import MLP, DeformableTransformerDecoder, DeformableTransformerDecoderLayer
 from .utils import bias_init_with_prob, linear_init
@@ -25,6 +36,7 @@ __all__ = (
     "Classify",
     "Detect",
     "Detect_DyHead",
+    "MHAFv10Detect",
     "Pose",
     "RTDETRDecoder",
     "Segment",
@@ -277,9 +289,9 @@ class _DyHeadTaskAttention(nn.Module):
         self.attn = nn.Sequential(
             nn.AdaptiveAvgPool2d(1),
             nn.Conv2d(channels, hidden, 1),
-            nn.ReLU(inplace=True),
+            nn.ReLU(inplace=False),
             nn.Conv2d(hidden, channels, 1),
-            nn.Hardsigmoid(inplace=True),
+            nn.Hardsigmoid(inplace=False),
         )
 
     def forward(self, x: torch.Tensor) -> torch.Tensor:
@@ -304,8 +316,8 @@ class DyHeadBlock(nn.Module):
         self.scale_attn = nn.Sequential(
             nn.AdaptiveAvgPool2d(1),
             nn.Conv2d(channels, 1, 1),
-            nn.ReLU(inplace=True),
-            nn.Hardsigmoid(inplace=True),
+            nn.ReLU(inplace=False),
+            nn.Hardsigmoid(inplace=False),
         )
         self.task_attn = _DyHeadTaskAttention(channels)
 
@@ -1920,3 +1932,17 @@ class v10Detect(Detect):
     def fuse(self):
         """Remove the one2many head for inference optimization."""
         self.cv2 = self.cv3 = None
+
+
+class MHAFv10Detect(v10Detect):
+    """MHAF-YOLO v10 detection head with the official lightweight large-kernel box branch."""
+
+    def __init__(self, nc: int = 80, ch: tuple = ()):
+        """Initialize the MHAF-YOLO v10 detection head."""
+        super().__init__(nc, ch)
+        c2 = max((16, ch[0] // 4, self.reg_max * 4))
+        self.cv2 = nn.ModuleList(
+            nn.Sequential(Conv(x, c2, 1), UniRepLKNetBlock(c2, 5), Conv(c2, c2, 1), nn.Conv2d(c2, 4 * self.reg_max, 1))
+            for x in ch
+        )
+        self.one2one_cv2 = copy.deepcopy(self.cv2)

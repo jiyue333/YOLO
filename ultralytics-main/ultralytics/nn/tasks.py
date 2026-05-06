@@ -63,6 +63,7 @@ from ultralytics.nn.modules import (
     ImagePoolingAttn,
     Index,
     LRPCHead,
+    MHAFv10Detect,
     MS_PFE,
     Pose,
     Pose26,
@@ -1753,7 +1754,7 @@ def parse_model(d, ch, verbose=True):
                 OBB26,
             }:
                 m.legacy = legacy
-        elif m is v10Detect:
+        elif m in frozenset({v10Detect, MHAFv10Detect}):
             args.append([ch[x] for x in f])
         elif m is ImagePoolingAttn:
             args.insert(1, [ch[x] for x in f])  # channels as second arg
