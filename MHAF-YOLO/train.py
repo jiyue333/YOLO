@@ -4,7 +4,7 @@ from ultralytics import YOLOv10
 
 
 MHAF_ROOT = Path(__file__).resolve().parent
-MODEL_CFG = MHAF_ROOT / "ultralytics/cfg/models/v10/yolov10n-MAFPN.yaml"
+MODEL_CFG = "/root/cqu/YOLO/MHAF-YOLO/ultralytics/cfg/models/v10/yolov10n-MAFPN.yaml"
 DATA_CFG = "/root/cqu/datasets/crowdhuman-dataset-people-and-faces-19k/data.yaml"
 
 # Values mirrored from modal.yaml, limited to keys supported by MHAF-YOLO's bundled Ultralytics config.
