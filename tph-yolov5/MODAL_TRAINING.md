@@ -54,7 +54,7 @@ python train.py \
   --data /root/cqu/datasets/crowdhuman-dataset-people-and-faces-19k/data.yaml \
   --weights '' \
   --hyp data/hyps/hyp.modal.yaml \
-  --cfg models/yolov5l-xs-tph.yaml \
+  --cfg models/yolov5n-xs-tph.yaml \
   --device 0 \
   --workers 8 \
   --project ../juliet-heath/bysj \
@@ -83,7 +83,7 @@ python train.py \
   --data /tmp/coco8-yolov5.yaml \
   --weights '' \
   --hyp data/hyps/hyp.modal.yaml \
-  --cfg models/yolov5l-xs-tph.yaml \
+  --cfg models/yolov5n-xs-tph.yaml \
   --device cpu \
   --workers 0 \
   --project ../runs/smoke \
