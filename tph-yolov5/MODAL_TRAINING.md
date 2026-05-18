@@ -49,7 +49,7 @@ Run from the `tph-yolov5` directory:
 ```bash
 WANDB_MODE=disabled python train.py \
   --img 640 \
-  --batch-size 64 \
+  --batch-size 32 \
   --epochs 100 \
   --data /root/cqu/datasets/crowdhuman-dataset-people-and-faces-19k/data.yaml \
   --weights '' \
