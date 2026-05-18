@@ -47,7 +47,7 @@ copy_paste: 0.2
 Run from the `tph-yolov5` directory:
 
 ```bash
-python train.py \
+WANDB_MODE=disabled python train.py \
   --img 640 \
   --batch-size 64 \
   --epochs 100 \
@@ -66,17 +66,19 @@ python train.py \
 Notes:
 
 - `--weights ''` trains from the YAML architecture. Do not reuse `modal.yaml`'s `yolo26n.pt`; it is a YOLO26 checkpoint, not a TPH-YOLOv5 checkpoint.
+- This YOLOv5 trainer requires the dataset YAML to include `nc`. If your newer Ultralytics-style data file only has `names`, create a YOLOv5-compatible copy with `nc: <number of classes>`.
 - `optimizer: SGD` is the default when `--adam` is omitted.
 - `cos_lr: true` maps to the default YOLOv5 one-cycle scheduler; do not pass `--linear-lr`.
 - `rect: false`, `resume: false`, `cache: false`, `single_cls: false`, and `multi_scale: 0.0` map to omitted flags because the YOLOv5 CLI enables those only when the flag is present.
 - `val: true` maps to omitting `--noval`.
+- `WANDB_MODE=disabled` avoids W&B login prompts in non-interactive server or Modal runs.
 
 ## COCO8 Smoke Test
 
 Use a small batch and one epoch to verify that the entrypoint, model YAML, hyperparameters, and dataset parsing work:
 
 ```bash
-python train.py \
+WANDB_MODE=disabled python train.py \
   --img 320 \
   --batch-size 2 \
   --epochs 1 \
