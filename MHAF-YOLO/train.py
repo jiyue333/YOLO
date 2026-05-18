@@ -35,7 +35,9 @@ TRAIN_ARGS = {
     "cos_lr": True,
     "close_mosaic": 10,
     "resume": False,
-    "amp": True,
+    # Disabled for PyTorch 2.6+ compatibility: the bundled AMP check loads
+    # yolov8n.pt through legacy torch.load semantics.
+    "amp": False,
     "profile": False,
     "multi_scale": False,
     # Validation during training
